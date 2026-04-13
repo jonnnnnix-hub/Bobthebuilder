@@ -23,7 +23,9 @@ export class OratsService {
 
   constructor(private configService: ConfigService) {
     this.apiKey = this.configService.get<string>('ORATS_API_KEY') ?? '';
-    this.symbolOverrides = this.parseSymbolOverrides(this.configService.get<string>('ORATS_SYMBOL_OVERRIDES'));
+    this.symbolOverrides = this.parseSymbolOverrides(
+      this.configService.get<string>('ORATS_SYMBOL_OVERRIDES'),
+    );
     this.client = axios.create({
       baseURL: 'https://api.orats.io/datav2',
       timeout: 30000,
@@ -50,40 +52,58 @@ export class OratsService {
       // Fall back to historical summary data below.
     }
 
-    const history = await this.getHistoricalIv30dSeries(symbol, new Date(Date.now() + 24 * 60 * 60 * 1000), 1);
+    const history = await this.getHistoricalIv30dSeries(
+      symbol,
+      new Date(Date.now() + 24 * 60 * 60 * 1000),
+      1,
+    );
     return history[0] ?? null;
   }
 
-  async getHistoricalIv30dSeries(symbol: string, asOfDate: Date, lookbackObservations: number = 60): Promise<number[]> {
+  async getHistoricalIv30dSeries(
+    symbol: string,
+    asOfDate: Date,
+    lookbackObservations: number = 60,
+  ): Promise<number[]> {
     if (!this.isConfigured()) {
       return [];
     }
 
     const rows = await this.requestSummaryRows('/hist/summaries', symbol);
     return rows
-      .map(row => ({
+      .map((row) => ({
         tradeDate: this.parseDay(row.tradeDate),
         iv30d: this.parseIv(row.iv30d),
       }))
-      .filter((row): row is { tradeDate: Date; iv30d: number } => Boolean(row.tradeDate && row.iv30d !== null))
-      .filter(row => row.tradeDate < asOfDate)
-      .sort((left, right) => right.tradeDate.getTime() - left.tradeDate.getTime())
+      .filter((row): row is { tradeDate: Date; iv30d: number } =>
+        Boolean(row.tradeDate && row.iv30d !== null),
+      )
+      .filter((row) => row.tradeDate < asOfDate)
+      .sort(
+        (left, right) => right.tradeDate.getTime() - left.tradeDate.getTime(),
+      )
       .slice(0, lookbackObservations)
-      .map(row => row.iv30d);
+      .map((row) => row.iv30d);
   }
 
-  private async requestSummaryRows(path: '/live/summaries' | '/hist/summaries', symbol: string): Promise<OratsSummaryRow[]> {
+  private async requestSummaryRows(
+    path: '/live/summaries' | '/hist/summaries',
+    symbol: string,
+  ): Promise<OratsSummaryRow[]> {
     let lastNotFoundError: unknown = null;
 
     for (const ticker of this.getTickerCandidates(symbol)) {
       try {
-        const response = await this.client.get<OratsResponse<OratsSummaryRow>>(path, {
-          params: {
-            token: this.apiKey,
-            ticker,
-            fields: OratsService.SUMMARY_FIELDS,
+        const response = await this.client.get<OratsResponse<OratsSummaryRow>>(
+          path,
+          {
+            params: {
+              token: this.apiKey,
+              ticker,
+              fields: OratsService.SUMMARY_FIELDS,
+            },
           },
-        });
+        );
 
         const rows = response.data?.data ?? [];
         if (rows.length > 0) {
@@ -112,7 +132,10 @@ export class OratsService {
       return [];
     }
 
-    const configuredOverrides = this.symbolOverrides.get(normalized) ?? OratsService.DEFAULT_SYMBOL_OVERRIDES[normalized] ?? [];
+    const configuredOverrides =
+      this.symbolOverrides.get(normalized) ??
+      OratsService.DEFAULT_SYMBOL_OVERRIDES[normalized] ??
+      [];
     const candidates = [...configuredOverrides, normalized];
     if (/[./]/.test(normalized)) {
       candidates.push(normalized.replace(/[./]/g, '-'));
@@ -122,7 +145,9 @@ export class OratsService {
     return [...new Set(candidates.filter(Boolean))];
   }
 
-  private parseSymbolOverrides(rawValue: string | undefined): Map<string, string[]> {
+  private parseSymbolOverrides(
+    rawValue: string | undefined,
+  ): Map<string, string[]> {
     const overrides = new Map<string, string[]>();
     if (!rawValue) {
       return overrides;
@@ -137,7 +162,7 @@ export class OratsService {
 
       const targets = rawTargets
         .split('|')
-        .map(value => value.trim().toUpperCase())
+        .map((value) => value.trim().toUpperCase())
         .filter(Boolean);
       if (targets.length > 0) {
         overrides.set(symbol, [...new Set(targets)]);
@@ -148,7 +173,9 @@ export class OratsService {
   }
 
   private parseIv(value: number | null | undefined): number | null {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? value
+      : null;
   }
 
   private parseDay(value: string | undefined): Date | null {
@@ -156,7 +183,9 @@ export class OratsService {
       return null;
     }
 
-    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : value;
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T00:00:00.000Z`
+      : value;
     const parsed = new Date(normalized);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }

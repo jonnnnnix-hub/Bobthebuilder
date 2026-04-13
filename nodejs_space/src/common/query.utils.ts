@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 
-export function parseBooleanQuery(value: string | undefined, fieldName: string): boolean | undefined {
+export function parseBooleanQuery(
+  value: string | undefined,
+  fieldName: string,
+): boolean | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -32,16 +35,23 @@ export function parseIntegerQuery(
 
   const parsed = Number.parseInt(value, 10);
   if (options?.min !== undefined && parsed < options.min) {
-    throw new BadRequestException(`${fieldName} must be at least ${options.min}`);
+    throw new BadRequestException(
+      `${fieldName} must be at least ${options.min}`,
+    );
   }
   if (options?.max !== undefined && parsed > options.max) {
-    throw new BadRequestException(`${fieldName} must be at most ${options.max}`);
+    throw new BadRequestException(
+      `${fieldName} must be at most ${options.max}`,
+    );
   }
 
   return parsed;
 }
 
-export function parseDateQuery(value: string | undefined, fieldName: string): Date | undefined {
+export function parseDateQuery(
+  value: string | undefined,
+  fieldName: string,
+): Date | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -71,5 +81,7 @@ export function parseEnumQuery<T extends string>(
     return value as T;
   }
 
-  throw new BadRequestException(`${fieldName} must be one of: ${allowedValues.join(', ')}`);
+  throw new BadRequestException(
+    `${fieldName} must be one of: ${allowedValues.join(', ')}`,
+  );
 }

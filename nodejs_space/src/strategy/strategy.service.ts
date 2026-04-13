@@ -65,7 +65,7 @@ export class StrategyService {
       return {
         strategy: 'short_put',
         reason: `VRP high (${vrpPct.toFixed(1)}th pct) + IV moderate (${ivZPct.toFixed(1)}th pct) — sell puts only`,
-        target_delta_short: 0.20,
+        target_delta_short: 0.2,
       };
     }
 
@@ -73,7 +73,7 @@ export class StrategyService {
     return {
       strategy: 'short_put',
       reason: `Default strategy — VRP ${vrpPct.toFixed(1)}th pct, IV ${ivZPct.toFixed(1)}th pct`,
-      target_delta_short: 0.20,
+      target_delta_short: 0.2,
     };
   }
 
@@ -91,30 +91,85 @@ export class StrategyService {
       throw new BadRequestException('atmIv must be positive');
     }
 
-    const putStrike = this.estimateStrikeFromDelta(underlyingPrice, atmIv, targetDeltaShort, 'put');
-    const callStrike = this.estimateStrikeFromDelta(underlyingPrice, atmIv, targetDeltaShort, 'call');
+    const putStrike = this.estimateStrikeFromDelta(
+      underlyingPrice,
+      atmIv,
+      targetDeltaShort,
+      'put',
+    );
+    const callStrike = this.estimateStrikeFromDelta(
+      underlyingPrice,
+      atmIv,
+      targetDeltaShort,
+      'call',
+    );
 
     switch (strategy) {
       case 'short_put':
         return [
-          { option_type: 'put', strike: putStrike, side: 'sell', delta: -targetDeltaShort },
+          {
+            option_type: 'put',
+            strike: putStrike,
+            side: 'sell',
+            delta: -targetDeltaShort,
+          },
         ];
 
       case 'short_strangle':
         return [
-          { option_type: 'put', strike: putStrike, side: 'sell', delta: -targetDeltaShort },
-          { option_type: 'call', strike: callStrike, side: 'sell', delta: targetDeltaShort },
+          {
+            option_type: 'put',
+            strike: putStrike,
+            side: 'sell',
+            delta: -targetDeltaShort,
+          },
+          {
+            option_type: 'call',
+            strike: callStrike,
+            side: 'sell',
+            delta: targetDeltaShort,
+          },
         ];
 
       case 'iron_condor': {
         const wingDelta = targetDeltaWing ?? 0.05;
-        const putWingStrike = this.estimateStrikeFromDelta(underlyingPrice, atmIv, wingDelta, 'put');
-        const callWingStrike = this.estimateStrikeFromDelta(underlyingPrice, atmIv, wingDelta, 'call');
+        const putWingStrike = this.estimateStrikeFromDelta(
+          underlyingPrice,
+          atmIv,
+          wingDelta,
+          'put',
+        );
+        const callWingStrike = this.estimateStrikeFromDelta(
+          underlyingPrice,
+          atmIv,
+          wingDelta,
+          'call',
+        );
         return [
-          { option_type: 'put', strike: putWingStrike, side: 'buy', delta: -wingDelta },
-          { option_type: 'put', strike: putStrike, side: 'sell', delta: -targetDeltaShort },
-          { option_type: 'call', strike: callStrike, side: 'sell', delta: targetDeltaShort },
-          { option_type: 'call', strike: callWingStrike, side: 'buy', delta: wingDelta },
+          {
+            option_type: 'put',
+            strike: putWingStrike,
+            side: 'buy',
+            delta: -wingDelta,
+          },
+          {
+            option_type: 'put',
+            strike: putStrike,
+            side: 'sell',
+            delta: -targetDeltaShort,
+          },
+          {
+            option_type: 'call',
+            strike: callStrike,
+            side: 'sell',
+            delta: targetDeltaShort,
+          },
+          {
+            option_type: 'call',
+            strike: callWingStrike,
+            side: 'buy',
+            delta: wingDelta,
+          },
         ];
       }
     }
@@ -130,19 +185,27 @@ export class StrategyService {
 
     switch (strategy) {
       case 'short_put': {
-        const putLeg = legs.find(l => l.option_type === 'put' && l.side === 'sell');
+        const putLeg = legs.find(
+          (l) => l.option_type === 'put' && l.side === 'sell',
+        );
         if (!putLeg) return 0;
         return (putLeg.strike - estimatedCredit) * multiplier;
       }
       case 'short_strangle': {
         // Undefined max loss (naked) — approximate as underlying going to 0 on put side
-        const putLeg = legs.find(l => l.option_type === 'put' && l.side === 'sell');
+        const putLeg = legs.find(
+          (l) => l.option_type === 'put' && l.side === 'sell',
+        );
         if (!putLeg) return 0;
         return (putLeg.strike - estimatedCredit) * multiplier;
       }
       case 'iron_condor': {
-        const shortPut = legs.find(l => l.option_type === 'put' && l.side === 'sell');
-        const longPut = legs.find(l => l.option_type === 'put' && l.side === 'buy');
+        const shortPut = legs.find(
+          (l) => l.option_type === 'put' && l.side === 'sell',
+        );
+        const longPut = legs.find(
+          (l) => l.option_type === 'put' && l.side === 'buy',
+        );
         if (!shortPut || !longPut) return 0;
         const wingWidth = Math.abs(shortPut.strike - longPut.strike);
         return (wingWidth - estimatedCredit) * multiplier;
@@ -157,20 +220,30 @@ export class StrategyService {
   ): { lower: number; upper?: number } {
     switch (strategy) {
       case 'short_put': {
-        const putLeg = legs.find(l => l.option_type === 'put' && l.side === 'sell');
+        const putLeg = legs.find(
+          (l) => l.option_type === 'put' && l.side === 'sell',
+        );
         return { lower: (putLeg?.strike ?? 0) - estimatedCredit };
       }
       case 'short_strangle': {
-        const putLeg = legs.find(l => l.option_type === 'put' && l.side === 'sell');
-        const callLeg = legs.find(l => l.option_type === 'call' && l.side === 'sell');
+        const putLeg = legs.find(
+          (l) => l.option_type === 'put' && l.side === 'sell',
+        );
+        const callLeg = legs.find(
+          (l) => l.option_type === 'call' && l.side === 'sell',
+        );
         return {
           lower: (putLeg?.strike ?? 0) - estimatedCredit,
           upper: (callLeg?.strike ?? 0) + estimatedCredit,
         };
       }
       case 'iron_condor': {
-        const shortPut = legs.find(l => l.option_type === 'put' && l.side === 'sell');
-        const shortCall = legs.find(l => l.option_type === 'call' && l.side === 'sell');
+        const shortPut = legs.find(
+          (l) => l.option_type === 'put' && l.side === 'sell',
+        );
+        const shortCall = legs.find(
+          (l) => l.option_type === 'call' && l.side === 'sell',
+        );
         return {
           lower: (shortPut?.strike ?? 0) - estimatedCredit,
           upper: (shortCall?.strike ?? 0) + estimatedCredit,
@@ -199,12 +272,16 @@ export class StrategyService {
     // From d1 = z, solve for K:
     // d1 = [ln(S/K) + (σ²/2)·t] / (σ·√t)
     // K = S · exp(-(d1·σ·√t - (σ²/2)·t))
-    const strike = underlyingPrice * Math.exp(-(z * iv * sqrtT - (iv * iv * t) / 2));
+    const strike =
+      underlyingPrice * Math.exp(-(z * iv * sqrtT - (iv * iv * t) / 2));
 
     return this.roundToStrikeIncrement(strike, underlyingPrice);
   }
 
-  private roundToStrikeIncrement(strike: number, underlyingPrice: number): number {
+  private roundToStrikeIncrement(
+    strike: number,
+    underlyingPrice: number,
+  ): number {
     let increment: number;
     if (underlyingPrice < 50) {
       increment = 0.5;
@@ -233,7 +310,9 @@ export class StrategyService {
     const d2 = 0.189269;
     const d3 = 0.001308;
 
-    const result = t - (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t);
+    const result =
+      t -
+      (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t);
     return isLower ? -result : result;
   }
 }

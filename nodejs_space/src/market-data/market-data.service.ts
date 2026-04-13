@@ -73,7 +73,9 @@ export function defaultIngestionDate(referenceDate: Date = new Date()): Date {
   return candidate;
 }
 
-export function parsePolygonDayAggregatesCsv(csvText: string): ParsedDayAggregateRow[] {
+export function parsePolygonDayAggregatesCsv(
+  csvText: string,
+): ParsedDayAggregateRow[] {
   const trimmed = csvText.trim();
   if (!trimmed) {
     return [];
@@ -84,13 +86,19 @@ export function parsePolygonDayAggregatesCsv(csvText: string): ParsedDayAggregat
     return [];
   }
 
-  const headers = lines[0].split(',').map(header => header.trim().toLowerCase());
-  const headerIndex = new Map<string, number>(headers.map((header, index) => [header, index]));
+  const headers = lines[0]
+    .split(',')
+    .map((header) => header.trim().toLowerCase());
+  const headerIndex = new Map<string, number>(
+    headers.map((header, index) => [header, index]),
+  );
 
   const requiredHeaders = ['ticker', 'open', 'high', 'low', 'close', 'volume'];
   for (const header of requiredHeaders) {
     if (!headerIndex.has(header)) {
-      throw new BadRequestException(`Flat file is missing required column: ${header}`);
+      throw new BadRequestException(
+        `Flat file is missing required column: ${header}`,
+      );
     }
   }
 
@@ -112,9 +120,10 @@ export function parsePolygonDayAggregatesCsv(csvText: string): ParsedDayAggregat
     const low = parseFiniteNumber(columns[headerIndex.get('low') ?? -1]);
     const close = parseFiniteNumber(columns[headerIndex.get('close') ?? -1]);
     const volume = parseBigIntValue(columns[headerIndex.get('volume') ?? -1]);
-    const transactions = transactionsIndex !== undefined
-      ? parseOptionalBigIntValue(columns[transactionsIndex])
-      : null;
+    const transactions =
+      transactionsIndex !== undefined
+        ? parseOptionalBigIntValue(columns[transactionsIndex])
+        : null;
 
     if (
       open === null ||
@@ -166,7 +175,9 @@ export class MarketDataService {
   }
 
   isFlatFilesConfigured(): boolean {
-    return this.flatFilesAccessKey.length > 0 && this.flatFilesSecretKey.length > 0;
+    return (
+      this.flatFilesAccessKey.length > 0 && this.flatFilesSecretKey.length > 0
+    );
   }
 
   async getHistoricalBars(symbol: string, days: number): Promise<DailyBar[]> {
@@ -177,16 +188,14 @@ export class MarketDataService {
     });
 
     if (localBars.length >= Math.min(days + 1, MIN_LOCAL_BAR_COUNT)) {
-      return localBars
-        .reverse()
-        .map(bar => ({
-          o: bar.open,
-          h: bar.high,
-          l: bar.low,
-          c: bar.close,
-          v: Number(bar.volume),
-          t: bar.date.getTime(),
-        }));
+      return localBars.reverse().map((bar) => ({
+        o: bar.open,
+        h: bar.high,
+        l: bar.low,
+        c: bar.close,
+        v: Number(bar.volume),
+        t: bar.date.getTime(),
+      }));
     }
 
     return this.polygon.getHistoricalBars(symbol, days);
@@ -255,7 +264,7 @@ export class MarketDataService {
     ]);
 
     const coverageBySymbol = new Map<string, CoverageRow>();
-    for (const symbol of activeSymbols.map(row => row.symbol)) {
+    for (const symbol of activeSymbols.map((row) => row.symbol)) {
       coverageBySymbol.set(symbol, {
         symbol,
         bar_count: 0,
@@ -286,8 +295,8 @@ export class MarketDataService {
 
     const symbolCoverage = [...coverageBySymbol.values()];
     const missingSymbols = symbolCoverage
-      .filter(row => row.bar_count === 0)
-      .map(row => row.symbol);
+      .filter((row) => row.bar_count === 0)
+      .map((row) => row.symbol);
 
     return {
       date_range: {
@@ -296,7 +305,8 @@ export class MarketDataService {
       },
       summary: {
         active_symbols: activeSymbols.length,
-        symbols_with_data: symbolCoverage.filter(row => row.bar_count > 0).length,
+        symbols_with_data: symbolCoverage.filter((row) => row.bar_count > 0)
+          .length,
         missing_symbols: missingSymbols.length,
         total_bars: bars.length,
         source_counts: sourceCounts,
@@ -306,7 +316,11 @@ export class MarketDataService {
     };
   }
 
-  async backfillHistoricalBars(fromDate: Date, toDate: Date, trigger: string = 'manual') {
+  async backfillHistoricalBars(
+    fromDate: Date,
+    toDate: Date,
+    trigger: string = 'manual',
+  ) {
     if (!this.polygon.isConfigured()) {
       throw new Error('POLYGON_API_KEY is not configured');
     }
@@ -343,11 +357,19 @@ export class MarketDataService {
       const symbolsWithData: string[] = [];
       const symbolsWithoutData: string[] = [];
 
-      for (let index = 0; index < symbols.length; index += BACKFILL_BATCH_SIZE) {
+      for (
+        let index = 0;
+        index < symbols.length;
+        index += BACKFILL_BATCH_SIZE
+      ) {
         const batch = symbols.slice(index, index + BACKFILL_BATCH_SIZE);
         const batchResults = await Promise.all(
           batch.map(async ({ symbol }) => {
-            const bars = await this.polygon.getHistoricalBarsRange(symbol, from, to);
+            const bars = await this.polygon.getHistoricalBarsRange(
+              symbol,
+              from,
+              to,
+            );
             return { symbol, bars };
           }),
         );
@@ -359,7 +381,9 @@ export class MarketDataService {
             continue;
           }
 
-          const rows = bars.map(bar => this.mapDailyBarToStoredRow(symbol, bar, 'polygon_rest_api'));
+          const rows = bars.map((bar) =>
+            this.mapDailyBarToStoredRow(symbol, bar, 'polygon_rest_api'),
+          );
           await this.storeBars(rows);
           totalRowsStored += rows.length;
           symbolsWithData.push(symbol);
@@ -371,12 +395,13 @@ export class MarketDataService {
       }
 
       const durationMs = Date.now() - startedAt;
-      const completionNotes = symbolsWithoutData.length > 0
-        ? JSON.stringify({
-            symbols_without_data: symbolsWithoutData.slice(0, 25),
-            symbols_without_data_count: symbolsWithoutData.length,
-          })
-        : null;
+      const completionNotes =
+        symbolsWithoutData.length > 0
+          ? JSON.stringify({
+              symbols_without_data: symbolsWithoutData.slice(0, 25),
+              symbols_without_data_count: symbolsWithoutData.length,
+            })
+          : null;
 
       await this.prisma.ingestion_run.update({
         where: { id: run.id },
@@ -426,8 +451,12 @@ export class MarketDataService {
       throw new Error('Polygon flat-file credentials are not configured');
     }
 
-    const normalizedTargetDate = normalizeDateOnly(targetDate ?? defaultIngestionDate());
-    if (normalizedTargetDate.getTime() > normalizeDateOnly(new Date()).getTime()) {
+    const normalizedTargetDate = normalizeDateOnly(
+      targetDate ?? defaultIngestionDate(),
+    );
+    if (
+      normalizedTargetDate.getTime() > normalizeDateOnly(new Date()).getTime()
+    ) {
       throw new BadRequestException('target date cannot be in the future');
     }
 
@@ -451,8 +480,12 @@ export class MarketDataService {
         }),
       ]);
 
-      const universeSymbols = new Set(activeSymbols.map(entry => entry.symbol));
-      const parsedRows = parsePolygonDayAggregatesCsv(gunzipSync(buffer).toString('utf8'));
+      const universeSymbols = new Set(
+        activeSymbols.map((entry) => entry.symbol),
+      );
+      const parsedRows = parsePolygonDayAggregatesCsv(
+        gunzipSync(buffer).toString('utf8'),
+      );
 
       let rowsSkipped = 0;
       const rowsToStore: IngestedBarRow[] = [];
@@ -468,7 +501,9 @@ export class MarketDataService {
         });
       }
 
-      await this.storeBars(rowsToStore.map(row => ({ ...row, source: 'polygon_flat_file' })));
+      await this.storeBars(
+        rowsToStore.map((row) => ({ ...row, source: 'polygon_flat_file' })),
+      );
 
       const durationMs = Date.now() - startedAt;
       await this.prisma.ingestion_run.update({
@@ -517,11 +552,13 @@ export class MarketDataService {
     }
   }
 
-  private async storeBars(rows: Array<IngestedBarRow & { source: string }>): Promise<void> {
+  private async storeBars(
+    rows: Array<IngestedBarRow & { source: string }>,
+  ): Promise<void> {
     for (let index = 0; index < rows.length; index += STORE_BATCH_SIZE) {
       const batch = rows.slice(index, index + STORE_BATCH_SIZE);
       await this.prisma.$transaction(
-        batch.map(row =>
+        batch.map((row) =>
           this.prisma.market_bar.upsert({
             where: {
               symbol_date: {
@@ -555,7 +592,11 @@ export class MarketDataService {
     }
   }
 
-  private mapDailyBarToStoredRow(symbol: string, bar: DailyBar, source: string): IngestedBarRow & { source: string } {
+  private mapDailyBarToStoredRow(
+    symbol: string,
+    bar: DailyBar,
+    source: string,
+  ): IngestedBarRow & { source: string } {
     return {
       symbol,
       date: normalizeDateOnly(new Date(bar.t)),
@@ -570,7 +611,7 @@ export class MarketDataService {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async downloadDayAggregatesFile(targetDate: Date): Promise<Buffer> {
@@ -634,7 +675,12 @@ export class MarketDataService {
       credentialScope,
       sha256Hex(canonicalRequest),
     ].join('\n');
-    const signingKey = getSignatureKey(this.flatFilesSecretKey, dateStamp, 'us-east-1', 's3');
+    const signingKey = getSignatureKey(
+      this.flatFilesSecretKey,
+      dateStamp,
+      'us-east-1',
+      's3',
+    );
     const signature = hmacHex(signingKey, stringToSign);
 
     return {
@@ -703,7 +749,12 @@ function parseOptionalBigIntValue(value: string | undefined): bigint | null {
 function splitAndEncodePath(objectKey: string): string {
   return objectKey
     .split('/')
-    .map(segment => encodeURIComponent(segment).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`))
+    .map((segment) =>
+      encodeURIComponent(segment).replace(
+        /[!'()*]/g,
+        (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+      ),
+    )
     .join('/');
 }
 
@@ -719,7 +770,12 @@ function hmacHex(key: Buffer | string, value: string): string {
   return crypto.createHmac('sha256', key).update(value, 'utf8').digest('hex');
 }
 
-function getSignatureKey(secretKey: string, dateStamp: string, regionName: string, serviceName: string): Buffer {
+function getSignatureKey(
+  secretKey: string,
+  dateStamp: string,
+  regionName: string,
+  serviceName: string,
+): Buffer {
   const kDate = hmac(`AWS4${secretKey}`, dateStamp);
   const kRegion = hmac(kDate, regionName);
   const kService = hmac(kRegion, serviceName);

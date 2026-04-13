@@ -24,9 +24,22 @@ export class UniverseController {
   constructor(private prisma: PrismaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get symbol universe', description: 'Returns the list of tracked symbols' })
-  @ApiQuery({ name: 'active_only', required: false, type: Boolean, description: 'Only return active symbols (default true)' })
-  @ApiQuery({ name: 'sector', required: false, type: String, description: 'Filter by sector' })
+  @ApiOperation({
+    summary: 'Get symbol universe',
+    description: 'Returns the list of tracked symbols',
+  })
+  @ApiQuery({
+    name: 'active_only',
+    required: false,
+    type: Boolean,
+    description: 'Only return active symbols (default true)',
+  })
+  @ApiQuery({
+    name: 'sector',
+    required: false,
+    type: String,
+    description: 'Filter by sector',
+  })
   @ApiResponse({ status: 200, description: 'Symbol universe list' })
   async getUniverse(
     @Query('active_only') activeOnly?: string,
@@ -54,12 +67,20 @@ export class UniverseController {
     return {
       total: symbols.length,
       sectors: sectors
-        .filter((entry: SectorGroup): entry is SectorGroup & { sector: string } => Boolean(entry.sector))
-        .map((entry: SectorGroup & { sector: string }): SectorSummary => ({
-          sector: entry.sector,
-          count: entry._count.symbol,
-        }))
-        .sort((left: SectorSummary, right: SectorSummary) => right.count - left.count),
+        .filter(
+          (entry: SectorGroup): entry is SectorGroup & { sector: string } =>
+            Boolean(entry.sector),
+        )
+        .map(
+          (entry: SectorGroup & { sector: string }): SectorSummary => ({
+            sector: entry.sector,
+            count: entry._count.symbol,
+          }),
+        )
+        .sort(
+          (left: SectorSummary, right: SectorSummary) =>
+            right.count - left.count,
+        ),
       symbols,
     };
   }

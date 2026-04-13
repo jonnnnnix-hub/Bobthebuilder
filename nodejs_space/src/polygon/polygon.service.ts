@@ -10,7 +10,11 @@ export interface OptionContract {
   implied_volatility?: number;
   open_interest?: number;
   day?: { close?: number; volume?: number };
-  details?: { strike_price?: number; expiration_date?: string; contract_type?: string };
+  details?: {
+    strike_price?: number;
+    expiration_date?: string;
+    contract_type?: string;
+  };
 }
 
 export interface DailyBar {
@@ -48,41 +52,65 @@ export class PolygonService {
    * Fetch options snapshot for a given underlying ticker.
    * Returns all option contracts with their current IV and pricing.
    */
-  async getOptionsSnapshot(underlyingTicker: string, currentPrice?: number | null): Promise<OptionContract[]> {
+  async getOptionsSnapshot(
+    underlyingTicker: string,
+    currentPrice?: number | null,
+  ): Promise<OptionContract[]> {
     try {
       const expirationParams = this.buildExpirationFilters();
       const targetedContracts = new Map<string, OptionContract>();
 
-      if (typeof currentPrice === 'number' && Number.isFinite(currentPrice) && currentPrice > 0) {
+      if (
+        typeof currentPrice === 'number' &&
+        Number.isFinite(currentPrice) &&
+        currentPrice > 0
+      ) {
         for (const widthPct of PolygonService.TARGETED_STRIKE_WINDOWS) {
           const strikeRadius = Math.max(currentPrice * widthPct, 1);
           const contracts = await this.fetchSnapshotContracts(
             underlyingTicker,
             {
               ...expirationParams,
-              'strike_price.gte': this.roundStrike(Math.max(currentPrice - strikeRadius, 0.01)),
+              'strike_price.gte': this.roundStrike(
+                Math.max(currentPrice - strikeRadius, 0.01),
+              ),
               'strike_price.lte': this.roundStrike(currentPrice + strikeRadius),
             },
             6,
           );
 
           this.addContracts(targetedContracts, contracts);
-          if (this.hasViableAtmPairs([...targetedContracts.values()], currentPrice)) {
+          if (
+            this.hasViableAtmPairs(
+              [...targetedContracts.values()],
+              currentPrice,
+            )
+          ) {
             const filteredContracts = [...targetedContracts.values()];
-            this.logger.log(`Fetched ${filteredContracts.length} targeted option contracts for ${underlyingTicker}`);
+            this.logger.log(
+              `Fetched ${filteredContracts.length} targeted option contracts for ${underlyingTicker}`,
+            );
             return filteredContracts;
           }
         }
       }
 
-      const broadContracts = await this.fetchSnapshotContracts(underlyingTicker, expirationParams, 8);
+      const broadContracts = await this.fetchSnapshotContracts(
+        underlyingTicker,
+        expirationParams,
+        8,
+      );
       this.addContracts(targetedContracts, broadContracts);
 
       const allContracts = [...targetedContracts.values()];
-      this.logger.log(`Fetched ${allContracts.length} option contracts for ${underlyingTicker}`);
+      this.logger.log(
+        `Fetched ${allContracts.length} option contracts for ${underlyingTicker}`,
+      );
       return allContracts;
     } catch (error: any) {
-      this.logger.error(`Failed to fetch options snapshot for ${underlyingTicker}: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch options snapshot for ${underlyingTicker}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -99,7 +127,9 @@ export class PolygonService {
       }
       return null;
     } catch (error: any) {
-      this.logger.error(`Failed to fetch previous close for ${ticker}: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch previous close for ${ticker}: ${error.message}`,
+      );
       return null;
     }
   }
@@ -121,39 +151,63 @@ export class PolygonService {
 
       const response = await this.client.get(
         `/v2/aggs/ticker/${ticker}/range/1/day/${from}/${to}`,
-        { params: { adjusted: true, sort: 'asc', limit: 5000, apiKey: this.apiKey } }
+        {
+          params: {
+            adjusted: true,
+            sort: 'asc',
+            limit: 5000,
+            apiKey: this.apiKey,
+          },
+        },
       );
 
       const results: DailyBar[] = response.data?.results ?? [];
       this.logger.debug(`Fetched ${results.length} daily bars for ${ticker}`);
       return results;
     } catch (error: any) {
-      this.logger.error(`Failed to fetch historical bars for ${ticker}: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch historical bars for ${ticker}: ${error.message}`,
+      );
       return [];
     }
   }
 
-  async getHistoricalBarsRange(ticker: string, fromDate: Date, toDate: Date): Promise<DailyBar[]> {
+  async getHistoricalBarsRange(
+    ticker: string,
+    fromDate: Date,
+    toDate: Date,
+  ): Promise<DailyBar[]> {
     try {
       const from = this.formatDate(fromDate);
       const to = this.formatDate(toDate);
 
       const response = await this.client.get(
         `/v2/aggs/ticker/${ticker}/range/1/day/${from}/${to}`,
-        { params: { adjusted: true, sort: 'asc', limit: 5000, apiKey: this.apiKey } },
+        {
+          params: {
+            adjusted: true,
+            sort: 'asc',
+            limit: 5000,
+            apiKey: this.apiKey,
+          },
+        },
       );
 
       const results: DailyBar[] = response.data?.results ?? [];
-      this.logger.debug(`Fetched ${results.length} ranged daily bars for ${ticker} (${from} -> ${to})`);
+      this.logger.debug(
+        `Fetched ${results.length} ranged daily bars for ${ticker} (${from} -> ${to})`,
+      );
       return results;
     } catch (error: any) {
-      this.logger.error(`Failed to fetch historical bar range for ${ticker}: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch historical bar range for ${ticker}: ${error.message}`,
+      );
       return [];
     }
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async fetchSnapshotContracts(
@@ -167,7 +221,10 @@ export class PolygonService {
 
     while (url && pageCount < maxPages) {
       const response = await this.client.get(url, {
-        params: pageCount === 0 ? { ...initialParams, limit: 250, apiKey: this.apiKey } : { apiKey: this.apiKey },
+        params:
+          pageCount === 0
+            ? { ...initialParams, limit: 250, apiKey: this.apiKey }
+            : { apiKey: this.apiKey },
       });
       const data = response.data;
 
@@ -177,7 +234,8 @@ export class PolygonService {
             ticker: result.details?.ticker ?? '',
             strike_price: result.details?.strike_price ?? 0,
             expiration_date: result.details?.expiration_date ?? '',
-            contract_type: result.details?.contract_type === 'call' ? 'call' : 'put',
+            contract_type:
+              result.details?.contract_type === 'call' ? 'call' : 'put',
             implied_volatility: result.implied_volatility ?? undefined,
             open_interest: result.open_interest ?? 0,
             day: result.day,
@@ -208,7 +266,10 @@ export class PolygonService {
     };
   }
 
-  private hasViableAtmPairs(options: OptionContract[], currentPrice: number): boolean {
+  private hasViableAtmPairs(
+    options: OptionContract[],
+    currentPrice: number,
+  ): boolean {
     const now = new Date();
     const pairedKeys = new Set<string>();
 
@@ -218,19 +279,25 @@ export class PolygonService {
       }
 
       const expiration = new Date(option.expiration_date);
-      const dte = (expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      const dte =
+        (expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
       if (dte < PolygonService.MIN_DTE || dte > PolygonService.MAX_DTE) {
         continue;
       }
 
-      const strikeDistancePct = Math.abs(option.strike_price - currentPrice) / currentPrice;
+      const strikeDistancePct =
+        Math.abs(option.strike_price - currentPrice) / currentPrice;
       if (strikeDistancePct > 0.15) {
         continue;
       }
 
-      pairedKeys.add(`${option.expiration_date}:${option.strike_price}:${option.contract_type}`);
+      pairedKeys.add(
+        `${option.expiration_date}:${option.strike_price}:${option.contract_type}`,
+      );
       if (
-        pairedKeys.has(`${option.expiration_date}:${option.strike_price}:call`) &&
+        pairedKeys.has(
+          `${option.expiration_date}:${option.strike_price}:call`,
+        ) &&
         pairedKeys.has(`${option.expiration_date}:${option.strike_price}:put`)
       ) {
         return true;
@@ -240,7 +307,10 @@ export class PolygonService {
     return false;
   }
 
-  private addContracts(target: Map<string, OptionContract>, contracts: OptionContract[]): void {
+  private addContracts(
+    target: Map<string, OptionContract>,
+    contracts: OptionContract[],
+  ): void {
     for (const contract of contracts) {
       if (contract.ticker) {
         target.set(contract.ticker, contract);

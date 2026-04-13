@@ -21,15 +21,15 @@ describe('MarketDataService', () => {
   });
 
   it('builds the expected Polygon flat-file object key', () => {
-    expect(buildPolygonDayAggregateObjectKey(new Date('2026-04-10T12:30:00.000Z'))).toBe(
-      'us_stocks_sip/day_aggs_v1/2026/04/2026-04-10/2026-04-10.csv.gz',
-    );
+    expect(
+      buildPolygonDayAggregateObjectKey(new Date('2026-04-10T12:30:00.000Z')),
+    ).toBe('us_stocks_sip/day_aggs_v1/2026/04/2026-04-10/2026-04-10.csv.gz');
   });
 
   it('defaults ingestion to the prior weekday', () => {
-    expect(defaultIngestionDate(new Date('2026-04-13T10:00:00.000Z')).toISOString()).toBe(
-      '2026-04-10T00:00:00.000Z',
-    );
+    expect(
+      defaultIngestionDate(new Date('2026-04-13T10:00:00.000Z')).toISOString(),
+    ).toBe('2026-04-10T00:00:00.000Z');
   });
 
   it('filters the flat file to active universe symbols and upserts market bars', async () => {
@@ -39,14 +39,20 @@ describe('MarketDataService', () => {
         upsert: jest.fn().mockResolvedValue(undefined),
       },
       universe: {
-        findMany: jest.fn().mockResolvedValue([{ symbol: 'AAPL' }, { symbol: 'MSFT' }]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ symbol: 'AAPL' }, { symbol: 'MSFT' }]),
       },
       ingestion_run: {
         create: jest.fn().mockResolvedValue({ id: 42 }),
         update: jest.fn().mockResolvedValue(undefined),
         findMany: jest.fn(),
       },
-      $transaction: jest.fn().mockImplementation(async (operations: Array<Promise<unknown>>) => Promise.all(operations)),
+      $transaction: jest
+        .fn()
+        .mockImplementation(async (operations: Array<Promise<unknown>>) =>
+          Promise.all(operations),
+        ),
     };
     const polygon = {
       getHistoricalBars: jest.fn(),
@@ -72,9 +78,15 @@ describe('MarketDataService', () => {
       ),
     });
 
-    const service = new MarketDataService(prisma as never, polygon as never, config as never);
+    const service = new MarketDataService(
+      prisma as never,
+      polygon as never,
+      config as never,
+    );
 
-    const result = await service.ingestDayAggregates(new Date('2026-04-10T00:00:00.000Z'));
+    const result = await service.ingestDayAggregates(
+      new Date('2026-04-10T00:00:00.000Z'),
+    );
 
     expect(result).toMatchObject({
       run_id: 42,
@@ -114,14 +126,20 @@ describe('MarketDataService', () => {
       low: 99 + index,
       close: 100.5 + index,
       volume: BigInt(1000 + index),
-      date: new Date(`2026-02-${`${(index % 28) + 1}`.padStart(2, '0')}T00:00:00.000Z`),
+      date: new Date(
+        `2026-02-${`${(index % 28) + 1}`.padStart(2, '0')}T00:00:00.000Z`,
+      ),
     }));
     const prisma = {
       market_bar: {
         findMany: jest.fn().mockResolvedValue(localBars),
       },
       universe: { findMany: jest.fn() },
-      ingestion_run: { create: jest.fn(), update: jest.fn(), findMany: jest.fn() },
+      ingestion_run: {
+        create: jest.fn(),
+        update: jest.fn(),
+        findMany: jest.fn(),
+      },
       $transaction: jest.fn(),
     };
     const polygon = {
@@ -133,7 +151,11 @@ describe('MarketDataService', () => {
       get: jest.fn().mockReturnValue(undefined),
     };
 
-    const service = new MarketDataService(prisma as never, polygon as never, config as never);
+    const service = new MarketDataService(
+      prisma as never,
+      polygon as never,
+      config as never,
+    );
     const bars = await service.getHistoricalBars('AAPL', 80);
 
     expect(bars).toHaveLength(61);
@@ -153,22 +175,42 @@ describe('MarketDataService', () => {
         upsert: jest.fn().mockResolvedValue(undefined),
       },
       universe: {
-        findMany: jest.fn().mockResolvedValue([{ symbol: 'AAPL' }, { symbol: 'MSFT' }]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ symbol: 'AAPL' }, { symbol: 'MSFT' }]),
       },
       ingestion_run: {
         create: jest.fn().mockResolvedValue({ id: 7 }),
         update: jest.fn().mockResolvedValue(undefined),
         findMany: jest.fn(),
       },
-      $transaction: jest.fn().mockImplementation(async (operations: Array<Promise<unknown>>) => Promise.all(operations)),
+      $transaction: jest
+        .fn()
+        .mockImplementation(async (operations: Array<Promise<unknown>>) =>
+          Promise.all(operations),
+        ),
     };
     const polygon = {
       getHistoricalBars: jest.fn(),
       getHistoricalBarsRange: jest
         .fn()
         .mockResolvedValueOnce([
-          { o: 100, h: 101, l: 99, c: 100.5, v: 1000, t: new Date('2026-04-01T00:00:00.000Z').getTime() },
-          { o: 101, h: 102, l: 100, c: 101.5, v: 1200, t: new Date('2026-04-02T00:00:00.000Z').getTime() },
+          {
+            o: 100,
+            h: 101,
+            l: 99,
+            c: 100.5,
+            v: 1000,
+            t: new Date('2026-04-01T00:00:00.000Z').getTime(),
+          },
+          {
+            o: 101,
+            h: 102,
+            l: 100,
+            c: 101.5,
+            v: 1200,
+            t: new Date('2026-04-02T00:00:00.000Z').getTime(),
+          },
         ])
         .mockResolvedValueOnce([]),
       isConfigured: jest.fn().mockReturnValue(true),
@@ -177,7 +219,11 @@ describe('MarketDataService', () => {
       get: jest.fn().mockReturnValue(undefined),
     };
 
-    const service = new MarketDataService(prisma as never, polygon as never, config as never);
+    const service = new MarketDataService(
+      prisma as never,
+      polygon as never,
+      config as never,
+    );
     const result = await service.backfillHistoricalBars(
       new Date('2026-04-01T00:00:00.000Z'),
       new Date('2026-04-05T00:00:00.000Z'),
@@ -219,15 +265,37 @@ describe('MarketDataService', () => {
     const prisma = {
       market_bar: {
         findMany: jest.fn().mockResolvedValue([
-          { symbol: 'AAPL', date: new Date('2026-04-01T00:00:00.000Z'), source: 'polygon_rest_api' },
-          { symbol: 'AAPL', date: new Date('2026-04-02T00:00:00.000Z'), source: 'polygon_rest_api' },
-          { symbol: 'MSFT', date: new Date('2026-04-02T00:00:00.000Z'), source: 'polygon_flat_file' },
+          {
+            symbol: 'AAPL',
+            date: new Date('2026-04-01T00:00:00.000Z'),
+            source: 'polygon_rest_api',
+          },
+          {
+            symbol: 'AAPL',
+            date: new Date('2026-04-02T00:00:00.000Z'),
+            source: 'polygon_rest_api',
+          },
+          {
+            symbol: 'MSFT',
+            date: new Date('2026-04-02T00:00:00.000Z'),
+            source: 'polygon_flat_file',
+          },
         ]),
       },
       universe: {
-        findMany: jest.fn().mockResolvedValue([{ symbol: 'AAPL' }, { symbol: 'MSFT' }, { symbol: 'NVDA' }]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { symbol: 'AAPL' },
+            { symbol: 'MSFT' },
+            { symbol: 'NVDA' },
+          ]),
       },
-      ingestion_run: { create: jest.fn(), update: jest.fn(), findMany: jest.fn() },
+      ingestion_run: {
+        create: jest.fn(),
+        update: jest.fn(),
+        findMany: jest.fn(),
+      },
       $transaction: jest.fn(),
     };
     const polygon = {
@@ -239,7 +307,11 @@ describe('MarketDataService', () => {
       get: jest.fn().mockReturnValue(undefined),
     };
 
-    const service = new MarketDataService(prisma as never, polygon as never, config as never);
+    const service = new MarketDataService(
+      prisma as never,
+      polygon as never,
+      config as never,
+    );
     const coverage = await service.getCoverage({
       from: new Date('2026-04-01T00:00:00.000Z'),
       to: new Date('2026-04-05T00:00:00.000Z'),

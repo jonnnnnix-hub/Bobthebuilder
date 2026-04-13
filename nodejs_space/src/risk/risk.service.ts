@@ -41,7 +41,8 @@ export class RiskService {
     max_loss: number;
     portfolio_value?: number;
   }): Promise<TradeRiskEvaluation> {
-    const portfolioValue = input.portfolio_value ?? RiskService.ASSUMED_PORTFOLIO_VALUE;
+    const portfolioValue =
+      input.portfolio_value ?? RiskService.ASSUMED_PORTFOLIO_VALUE;
     const checks: RiskCheckResult[] = [];
 
     // Check 1: Max loss < 2% of portfolio
@@ -79,9 +80,12 @@ export class RiskService {
       select: { symbol: true },
     });
 
-    const symbolsInSameSymbol = openTrades.filter(t => t.symbol === input.symbol).length;
+    const symbolsInSameSymbol = openTrades.filter(
+      (t) => t.symbol === input.symbol,
+    ).length;
     const totalOpen = openTrades.length + 1; // +1 for the new trade
-    const concentration = totalOpen > 0 ? (symbolsInSameSymbol + 1) / totalOpen : 0;
+    const concentration =
+      totalOpen > 0 ? (symbolsInSameSymbol + 1) / totalOpen : 0;
 
     // Look up sector for concentration check
     const universe = await this.prisma.universe.findUnique({
@@ -91,7 +95,8 @@ export class RiskService {
 
     if (universe?.sector) {
       const symbolsInSector = await this.getSectorSymbols(universe.sector);
-      const sectorTrades = openTrades.filter(t => symbolsInSector.has(t.symbol)).length + 1;
+      const sectorTrades =
+        openTrades.filter((t) => symbolsInSector.has(t.symbol)).length + 1;
       const sectorConcentration = sectorTrades / totalOpen;
 
       if (sectorConcentration > RiskService.SECTOR_CONCENTRATION_PCT) {
@@ -125,7 +130,7 @@ export class RiskService {
 
     // Persist risk checks
     await Promise.all(
-      checks.map(check =>
+      checks.map((check) =>
         this.prisma.risk_check.create({
           data: {
             trade_id: input.trade_id ?? null,
@@ -232,7 +237,8 @@ export class RiskService {
     const marginPct = estimatedMargin / RiskService.ASSUMED_PORTFOLIO_VALUE;
     checks.push({
       check_type: 'margin_utilization',
-      status: marginPct > 0.8 ? 'blocked' : marginPct > 0.6 ? 'warned' : 'passed',
+      status:
+        marginPct > 0.8 ? 'blocked' : marginPct > 0.6 ? 'warned' : 'passed',
       value: Math.round(marginPct * 100),
       threshold: 80,
       message: `Estimated margin utilization ${(marginPct * 100).toFixed(0)}%`,
@@ -242,7 +248,7 @@ export class RiskService {
 
     // Persist portfolio risk checks
     await Promise.all(
-      checks.map(check =>
+      checks.map((check) =>
         this.prisma.risk_check.create({
           data: {
             trade_id: null,
@@ -265,8 +271,23 @@ export class RiskService {
   }
 
   async getLatestRiskReport(): Promise<{
-    trade_checks: Array<{ trade_id: number | null; check_type: string; status: string; value: number | null; threshold: number | null; message: string | null; created_at: Date }>;
-    portfolio_checks: Array<{ check_type: string; status: string; value: number | null; threshold: number | null; message: string | null; created_at: Date }>;
+    trade_checks: Array<{
+      trade_id: number | null;
+      check_type: string;
+      status: string;
+      value: number | null;
+      threshold: number | null;
+      message: string | null;
+      created_at: Date;
+    }>;
+    portfolio_checks: Array<{
+      check_type: string;
+      status: string;
+      value: number | null;
+      threshold: number | null;
+      message: string | null;
+      created_at: Date;
+    }>;
   }> {
     const recentChecks = await this.prisma.risk_check.findMany({
       orderBy: { created_at: 'desc' },
@@ -274,8 +295,8 @@ export class RiskService {
     });
 
     return {
-      trade_checks: recentChecks.filter(c => c.trade_id != null),
-      portfolio_checks: recentChecks.filter(c => c.trade_id == null),
+      trade_checks: recentChecks.filter((c) => c.trade_id != null),
+      portfolio_checks: recentChecks.filter((c) => c.trade_id == null),
     };
   }
 
@@ -284,12 +305,14 @@ export class RiskService {
       where: { sector, active: true },
       select: { symbol: true },
     });
-    return new Set(symbols.map(s => s.symbol));
+    return new Set(symbols.map((s) => s.symbol));
   }
 
-  private aggregateStatus(checks: RiskCheckResult[]): 'passed' | 'warned' | 'blocked' {
-    if (checks.some(c => c.status === 'blocked')) return 'blocked';
-    if (checks.some(c => c.status === 'warned')) return 'warned';
+  private aggregateStatus(
+    checks: RiskCheckResult[],
+  ): 'passed' | 'warned' | 'blocked' {
+    if (checks.some((c) => c.status === 'blocked')) return 'blocked';
+    if (checks.some((c) => c.status === 'warned')) return 'warned';
     return 'passed';
   }
 }

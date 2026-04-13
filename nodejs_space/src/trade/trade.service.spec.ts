@@ -29,10 +29,10 @@ describe('TradeService', () => {
     strategyMock.suggestStrategy.mockReturnValue({
       strategy: 'short_put',
       reason: 'VRP high + IV moderate',
-      target_delta_short: 0.20,
+      target_delta_short: 0.2,
     });
     strategyMock.calculateLegs.mockReturnValue([
-      { option_type: 'put', strike: 430, side: 'sell', delta: -0.20 },
+      { option_type: 'put', strike: 430, side: 'sell', delta: -0.2 },
     ]);
 
     service = new TradeService(prismaMock, strategyMock);
@@ -60,7 +60,9 @@ describe('TradeService', () => {
         status: 'pending',
         direction: 'sell',
         contracts: 1,
-        legs: [{ id: 1, option_type: 'put', strike: 430, side: 'sell', quantity: 1 }],
+        legs: [
+          { id: 1, option_type: 'put', strike: 430, side: 'sell', quantity: 1 },
+        ],
       } as never);
 
       const result = await service.createTradeFromSignal({ signal_id: 1 });
@@ -77,8 +79,9 @@ describe('TradeService', () => {
     it('should throw when signal not found', async () => {
       prismaMock.signal.findUnique.mockResolvedValue(null as never);
 
-      await expect(service.createTradeFromSignal({ signal_id: 999 }))
-        .rejects.toThrow('Signal 999 not found');
+      await expect(
+        service.createTradeFromSignal({ signal_id: 999 }),
+      ).rejects.toThrow('Signal 999 not found');
     });
 
     it('should throw when signal not selected', async () => {
@@ -88,18 +91,30 @@ describe('TradeService', () => {
         selected: false,
       } as never);
 
-      await expect(service.createTradeFromSignal({ signal_id: 2 }))
-        .rejects.toThrow('was not selected');
+      await expect(
+        service.createTradeFromSignal({ signal_id: 2 }),
+      ).rejects.toThrow('was not selected');
     });
 
     it('should use custom contracts count', async () => {
       prismaMock.signal.findUnique.mockResolvedValue({
-        id: 1, symbol: 'SPY', selected: true, atm_iv: 0.25,
-        vrp_20: 0.08, vrp_percentile: 96, iv_z: 1.5, iv_z_percentile: 93,
+        id: 1,
+        symbol: 'SPY',
+        selected: true,
+        atm_iv: 0.25,
+        vrp_20: 0.08,
+        vrp_percentile: 96,
+        iv_z: 1.5,
+        iv_z_percentile: 93,
       } as never);
       prismaMock.trade.create.mockResolvedValue({
-        id: 1, symbol: 'SPY', strategy: 'short_put', status: 'pending',
-        direction: 'sell', contracts: 3, legs: [],
+        id: 1,
+        symbol: 'SPY',
+        strategy: 'short_put',
+        status: 'pending',
+        direction: 'sell',
+        contracts: 3,
+        legs: [],
       } as never);
 
       await service.createTradeFromSignal({ signal_id: 1, contracts: 3 });
@@ -115,20 +130,25 @@ describe('TradeService', () => {
   describe('openTrade', () => {
     it('should open a pending trade', async () => {
       prismaMock.trade.findUnique.mockResolvedValue({
-        id: 1, status: 'pending', legs: [],
+        id: 1,
+        status: 'pending',
+        legs: [],
       } as never);
       prismaMock.trade.update.mockResolvedValue({
-        id: 1, status: 'open', opened_at: new Date(), legs: [],
+        id: 1,
+        status: 'open',
+        opened_at: new Date(),
+        legs: [],
       } as never);
 
-      const result = await service.openTrade(1, 2.50);
+      const result = await service.openTrade(1, 2.5);
 
       expect(result.status).toBe('open');
       expect(prismaMock.trade.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             status: 'open',
-            entry_credit: 2.50,
+            entry_credit: 2.5,
           }),
         }),
       );
@@ -136,12 +156,16 @@ describe('TradeService', () => {
 
     it('should throw when trade not found', async () => {
       prismaMock.trade.findUnique.mockResolvedValue(null as never);
-      await expect(service.openTrade(999)).rejects.toThrow('Trade 999 not found');
+      await expect(service.openTrade(999)).rejects.toThrow(
+        'Trade 999 not found',
+      );
     });
 
     it('should throw when trade is not pending', async () => {
       prismaMock.trade.findUnique.mockResolvedValue({
-        id: 1, status: 'open', legs: [],
+        id: 1,
+        status: 'open',
+        legs: [],
       } as never);
       await expect(service.openTrade(1)).rejects.toThrow('expected pending');
     });
@@ -150,20 +174,28 @@ describe('TradeService', () => {
   describe('closeTrade', () => {
     it('should close an open trade with P&L calculation', async () => {
       prismaMock.trade.findUnique.mockResolvedValue({
-        id: 1, status: 'open', entry_credit: 2.50, contracts: 1, legs: [],
+        id: 1,
+        status: 'open',
+        entry_credit: 2.5,
+        contracts: 1,
+        legs: [],
       } as never);
       prismaMock.trade.update.mockResolvedValue({
-        id: 1, status: 'closed', pnl: 150, pnl_pct: 60, legs: [],
+        id: 1,
+        status: 'closed',
+        pnl: 150,
+        pnl_pct: 60,
+        legs: [],
       } as never);
 
-      const result = await service.closeTrade(1, 1.00);
+      const result = await service.closeTrade(1, 1.0);
 
       expect(result.status).toBe('closed');
       expect(prismaMock.trade.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             status: 'closed',
-            exit_debit: 1.00,
+            exit_debit: 1.0,
             pnl: 150, // (2.50 - 1.00) * 1 * 100
             pnl_pct: 60, // (150 / 250) * 100
           }),
@@ -173,13 +205,20 @@ describe('TradeService', () => {
 
     it('should handle null entry credit gracefully', async () => {
       prismaMock.trade.findUnique.mockResolvedValue({
-        id: 1, status: 'open', entry_credit: null, contracts: 1, legs: [],
+        id: 1,
+        status: 'open',
+        entry_credit: null,
+        contracts: 1,
+        legs: [],
       } as never);
       prismaMock.trade.update.mockResolvedValue({
-        id: 1, status: 'closed', pnl: null, legs: [],
+        id: 1,
+        status: 'closed',
+        pnl: null,
+        legs: [],
       } as never);
 
-      const result = await service.closeTrade(1, 1.00);
+      const result = await service.closeTrade(1, 1.0);
       expect(result.status).toBe('closed');
       expect(prismaMock.trade.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -190,19 +229,27 @@ describe('TradeService', () => {
 
     it('should throw when trade is not open', async () => {
       prismaMock.trade.findUnique.mockResolvedValue({
-        id: 1, status: 'pending', legs: [],
+        id: 1,
+        status: 'pending',
+        legs: [],
       } as never);
-      await expect(service.closeTrade(1)).rejects.toThrow('expected open or closing');
+      await expect(service.closeTrade(1)).rejects.toThrow(
+        'expected open or closing',
+      );
     });
   });
 
   describe('cancelTrade', () => {
     it('should cancel a pending trade', async () => {
       prismaMock.trade.findUnique.mockResolvedValue({
-        id: 1, status: 'pending', legs: [],
+        id: 1,
+        status: 'pending',
+        legs: [],
       } as never);
       prismaMock.trade.update.mockResolvedValue({
-        id: 1, status: 'cancelled', legs: [],
+        id: 1,
+        status: 'cancelled',
+        legs: [],
       } as never);
 
       const result = await service.cancelTrade(1);
@@ -211,7 +258,9 @@ describe('TradeService', () => {
 
     it('should throw when trade is already closed', async () => {
       prismaMock.trade.findUnique.mockResolvedValue({
-        id: 1, status: 'closed', legs: [],
+        id: 1,
+        status: 'closed',
+        legs: [],
       } as never);
       await expect(service.cancelTrade(1)).rejects.toThrow('already closed');
     });

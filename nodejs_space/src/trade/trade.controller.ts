@@ -1,5 +1,22 @@
-import { Controller, Post, Patch, Get, Body, Param, Query, Logger, Res, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Patch,
+  Get,
+  Body,
+  Param,
+  Query,
+  Logger,
+  Res,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { TradeService } from './trade.service.js';
 import { parseIntegerQuery, parseEnumQuery } from '../common/query.utils.js';
 import type { Response } from 'express';
@@ -23,7 +40,9 @@ export class TradeController {
     res?.setHeader('Cache-Control', 'no-store');
 
     if (!body.signal_id || typeof body.signal_id !== 'number') {
-      throw new BadRequestException('signal_id is required and must be a number');
+      throw new BadRequestException(
+        'signal_id is required and must be a number',
+      );
     }
 
     return this.tradeService.createTradeFromSignal({
@@ -77,7 +96,11 @@ export class TradeController {
   @Get()
   @ApiOperation({ summary: 'Get trade history' })
   @ApiQuery({ name: 'symbol', required: false })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'open', 'closing', 'closed', 'expired', 'cancelled'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending', 'open', 'closing', 'closed', 'expired', 'cancelled'],
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Paginated trade list' })
@@ -91,7 +114,12 @@ export class TradeController {
     res?.setHeader('Cache-Control', 'no-store');
 
     const validStatus = parseEnumQuery(status, 'status', [
-      'pending', 'open', 'closing', 'closed', 'expired', 'cancelled',
+      'pending',
+      'open',
+      'closing',
+      'closed',
+      'expired',
+      'cancelled',
     ] as const);
 
     return this.tradeService.getTradeHistory({

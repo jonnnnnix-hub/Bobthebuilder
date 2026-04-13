@@ -4,7 +4,8 @@ jest.mock('axios', () => ({
   __esModule: true,
   default: {
     create: jest.fn(() => ({ get: getMock })),
-    isAxiosError: (error: unknown) => Boolean((error as { isAxiosError?: boolean })?.isAxiosError),
+    isAxiosError: (error: unknown) =>
+      Boolean((error as { isAxiosError?: boolean })?.isAxiosError),
   },
 }));
 
@@ -16,27 +17,34 @@ describe('OratsService', () => {
   });
 
   it('normalizes dotted tickers for ORATS summary requests', async () => {
-    getMock.mockImplementation(async (_path: string, config: { params: { ticker: string } }) => {
-      if (config.params.ticker === 'BRK-B') {
-        return {
-          data: {
-            data: [{ tradeDate: '2026-04-10', iv30d: 0.22 }],
-          },
-        };
-      }
+    getMock.mockImplementation(
+      async (_path: string, config: { params: { ticker: string } }) => {
+        if (config.params.ticker === 'BRK-B') {
+          return {
+            data: {
+              data: [{ tradeDate: '2026-04-10', iv30d: 0.22 }],
+            },
+          };
+        }
 
-      throw Object.assign(new Error('not found'), {
-        isAxiosError: true,
-        response: { status: 404 },
-      });
-    });
+        throw Object.assign(new Error('not found'), {
+          isAxiosError: true,
+          response: { status: 404 },
+        });
+      },
+    );
 
     const configService = {
       get: jest.fn().mockReturnValue('orats-key'),
     };
     const service = new OratsService(configService as never);
 
-    await expect(service.getHistoricalIv30dSeries('BRK.B', new Date('2026-04-12T00:00:00.000Z'))).resolves.toEqual([0.22]);
+    await expect(
+      service.getHistoricalIv30dSeries(
+        'BRK.B',
+        new Date('2026-04-12T00:00:00.000Z'),
+      ),
+    ).resolves.toEqual([0.22]);
     expect(getMock).toHaveBeenCalledWith(
       '/hist/summaries',
       expect.objectContaining({
@@ -95,23 +103,30 @@ describe('OratsService', () => {
       }),
     };
 
-    getMock.mockImplementation(async (_path: string, config: { params: { ticker: string } }) => {
-      if (config.params.ticker === 'BRK/B') {
-        return {
-          data: {
-            data: [{ tradeDate: '2026-04-10', iv30d: 0.24 }],
-          },
-        };
-      }
+    getMock.mockImplementation(
+      async (_path: string, config: { params: { ticker: string } }) => {
+        if (config.params.ticker === 'BRK/B') {
+          return {
+            data: {
+              data: [{ tradeDate: '2026-04-10', iv30d: 0.24 }],
+            },
+          };
+        }
 
-      throw Object.assign(new Error('not found'), {
-        isAxiosError: true,
-        response: { status: 404 },
-      });
-    });
+        throw Object.assign(new Error('not found'), {
+          isAxiosError: true,
+          response: { status: 404 },
+        });
+      },
+    );
 
     const service = new OratsService(configService as never);
-    await expect(service.getHistoricalIv30dSeries('BRK.B', new Date('2026-04-12T00:00:00.000Z'))).resolves.toEqual([0.24]);
+    await expect(
+      service.getHistoricalIv30dSeries(
+        'BRK.B',
+        new Date('2026-04-12T00:00:00.000Z'),
+      ),
+    ).resolves.toEqual([0.24]);
     expect(getMock).toHaveBeenNthCalledWith(
       1,
       '/hist/summaries',

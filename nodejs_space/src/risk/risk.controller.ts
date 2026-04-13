@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Body, Headers, Logger, Res, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Headers,
+  Logger,
+  Res,
+  HttpException,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { RiskService } from './risk.service.js';
 import { ConfigService } from '@nestjs/config';
@@ -15,7 +26,10 @@ export class RiskController {
   ) {}
 
   @Get('report')
-  @ApiOperation({ summary: 'Get latest risk report', description: 'Returns recent trade and portfolio risk checks.' })
+  @ApiOperation({
+    summary: 'Get latest risk report',
+    description: 'Returns recent trade and portfolio risk checks.',
+  })
   @ApiResponse({ status: 200, description: 'Risk report' })
   async getReport(@Res({ passthrough: true }) res?: Response) {
     res?.setHeader('Cache-Control', 'no-store');
@@ -23,8 +37,15 @@ export class RiskController {
   }
 
   @Post('evaluate')
-  @ApiOperation({ summary: 'Evaluate portfolio risk', description: 'Runs portfolio-level risk checks. API key protected.' })
-  @ApiHeader({ name: 'x-api-key', required: true, description: 'API key for automated triggers' })
+  @ApiOperation({
+    summary: 'Evaluate portfolio risk',
+    description: 'Runs portfolio-level risk checks. API key protected.',
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    required: true,
+    description: 'API key for automated triggers',
+  })
   @ApiResponse({ status: 200, description: 'Portfolio risk evaluation' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async evaluate(

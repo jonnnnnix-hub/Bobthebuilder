@@ -1,5 +1,22 @@
-import { Controller, Post, Get, Param, Headers, Logger, Res, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Headers,
+  Logger,
+  Res,
+  HttpException,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiHeader,
+  ApiParam,
+} from '@nestjs/swagger';
 import { PositionService } from './position.service.js';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
@@ -15,8 +32,16 @@ export class PositionController {
   ) {}
 
   @Post('snapshot')
-  @ApiOperation({ summary: 'Snapshot all open positions', description: 'Fetches current prices and creates position snapshots. API key protected.' })
-  @ApiHeader({ name: 'x-api-key', required: true, description: 'API key for automated triggers' })
+  @ApiOperation({
+    summary: 'Snapshot all open positions',
+    description:
+      'Fetches current prices and creates position snapshots. API key protected.',
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    required: true,
+    description: 'API key for automated triggers',
+  })
   @ApiResponse({ status: 200, description: 'Snapshot results' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async snapshot(
@@ -34,7 +59,11 @@ export class PositionController {
   }
 
   @Get('portfolio')
-  @ApiOperation({ summary: 'Get portfolio summary', description: 'Returns total P&L, net delta, total theta, and all open positions.' })
+  @ApiOperation({
+    summary: 'Get portfolio summary',
+    description:
+      'Returns total P&L, net delta, total theta, and all open positions.',
+  })
   @ApiResponse({ status: 200, description: 'Portfolio summary' })
   async getPortfolio(@Res({ passthrough: true }) res?: Response) {
     res?.setHeader('Cache-Control', 'no-store');

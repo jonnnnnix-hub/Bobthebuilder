@@ -1,4 +1,11 @@
-import { Controller, Post, Body, Logger, Res, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Logger,
+  Res,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { StrategyService, StrategyType } from './strategy.service.js';
 import type { Response } from 'express';
@@ -15,7 +22,8 @@ export class StrategyController {
   @ApiResponse({ status: 200, description: 'Strategy suggestion' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   suggest(
-    @Body() body: {
+    @Body()
+    body: {
       symbol: string;
       atm_iv: number | null;
       vrp_20: number | null;
@@ -40,16 +48,22 @@ export class StrategyController {
       iv_z_percentile: body.iv_z_percentile ?? null,
     });
 
-    this.logger.log(`Strategy suggested for ${body.symbol}: ${suggestion.strategy}`);
+    this.logger.log(
+      `Strategy suggested for ${body.symbol}: ${suggestion.strategy}`,
+    );
     return suggestion;
   }
 
   @Post('calculate-legs')
   @ApiOperation({ summary: 'Calculate option legs for a strategy' })
-  @ApiResponse({ status: 200, description: 'Calculated legs with max loss and breakevens' })
+  @ApiResponse({
+    status: 200,
+    description: 'Calculated legs with max loss and breakevens',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   calculateLegs(
-    @Body() body: {
+    @Body()
+    body: {
       strategy: StrategyType;
       underlying_price: number;
       atm_iv: number;
@@ -62,9 +76,15 @@ export class StrategyController {
   ) {
     res?.setHeader('Cache-Control', 'no-store');
 
-    const validStrategies: StrategyType[] = ['short_strangle', 'iron_condor', 'short_put'];
+    const validStrategies: StrategyType[] = [
+      'short_strangle',
+      'iron_condor',
+      'short_put',
+    ];
     if (!validStrategies.includes(body.strategy)) {
-      throw new BadRequestException(`strategy must be one of: ${validStrategies.join(', ')}`);
+      throw new BadRequestException(
+        `strategy must be one of: ${validStrategies.join(', ')}`,
+      );
     }
     if (!body.underlying_price || body.underlying_price <= 0) {
       throw new BadRequestException('underlying_price must be positive');
@@ -72,8 +92,14 @@ export class StrategyController {
     if (!body.atm_iv || body.atm_iv <= 0) {
       throw new BadRequestException('atm_iv must be positive');
     }
-    if (!body.target_delta_short || body.target_delta_short <= 0 || body.target_delta_short >= 1) {
-      throw new BadRequestException('target_delta_short must be between 0 and 1');
+    if (
+      !body.target_delta_short ||
+      body.target_delta_short <= 0 ||
+      body.target_delta_short >= 1
+    ) {
+      throw new BadRequestException(
+        'target_delta_short must be between 0 and 1',
+      );
     }
 
     const contracts = body.contracts ?? 1;
@@ -86,8 +112,17 @@ export class StrategyController {
     );
 
     const estimatedCredit = body.estimated_credit ?? 0;
-    const maxLoss = this.strategyService.calculateMaxLoss(body.strategy, legs, estimatedCredit, contracts);
-    const breakevens = this.strategyService.calculateBreakevens(body.strategy, legs, estimatedCredit);
+    const maxLoss = this.strategyService.calculateMaxLoss(
+      body.strategy,
+      legs,
+      estimatedCredit,
+      contracts,
+    );
+    const breakevens = this.strategyService.calculateBreakevens(
+      body.strategy,
+      legs,
+      estimatedCredit,
+    );
 
     return {
       strategy: body.strategy,

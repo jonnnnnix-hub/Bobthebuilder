@@ -21,14 +21,32 @@ describe('Bob API (integration)', () => {
 
   const universeRows = [
     { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', active: true },
-    { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology', active: true },
-    { symbol: 'XLF', name: 'Financial Select Sector SPDR', sector: 'ETF', active: true },
+    {
+      symbol: 'MSFT',
+      name: 'Microsoft Corporation',
+      sector: 'Technology',
+      active: true,
+    },
+    {
+      symbol: 'XLF',
+      name: 'Financial Select Sector SPDR',
+      sector: 'ETF',
+      active: true,
+    },
   ];
 
   const configRows = [
     { key: 'top_n_candidates', value: '5', description: 'Top names to select' },
-    { key: 'vrp_threshold_percentile', value: '95', description: 'VRP threshold percentile' },
-    { key: 'iv_z_threshold_percentile', value: '92.5', description: 'IV z-score threshold percentile' },
+    {
+      key: 'vrp_threshold_percentile',
+      value: '95',
+      description: 'VRP threshold percentile',
+    },
+    {
+      key: 'iv_z_threshold_percentile',
+      value: '92.5',
+      description: 'IV z-score threshold percentile',
+    },
   ];
 
   const completedRun = {
@@ -50,167 +68,196 @@ describe('Bob API (integration)', () => {
     },
     signal: {
       count: jest.fn().mockResolvedValue(1),
-      groupBy: jest.fn().mockResolvedValue([{ symbol: 'AAPL', _count: { symbol: 1 } }]),
+      groupBy: jest
+        .fn()
+        .mockResolvedValue([{ symbol: 'AAPL', _count: { symbol: 1 } }]),
       aggregate: jest.fn().mockResolvedValue({
         _avg: { vrp_20: 1.2, iv_z: 2.3, atm_iv: 0.45 },
       }),
-      findMany: jest.fn().mockImplementation(({ where, take, skip }: { where?: Record<string, unknown>; take?: number; skip?: number }) => {
-        if (where?.run_id === completedRun.run_id) {
-          return [
-            {
-              symbol: 'AAPL',
-              date: new Date('2026-04-12T00:00:00.000Z'),
-              vrp_20: 0.25,
-              rank: 1,
-              selected: true,
-              vrp_percentile: 99,
-              iv_z: 2.5,
-              iv_z_percentile: 98,
-              iv_history_source: 'orats',
-              selection_reason: 'selected',
-              run_id: completedRun.run_id,
-            },
-            {
-              symbol: 'MSFT',
-              date: new Date('2026-04-12T00:00:00.000Z'),
-              vrp_20: 0.21,
-              rank: 2,
-              selected: false,
-              vrp_percentile: 94,
-              iv_z: 2.9,
-              iv_z_percentile: 96,
-              iv_history_source: 'database_fallback',
-              selection_reason: 'below_vrp_threshold',
-              run_id: completedRun.run_id,
-            },
-            {
-              symbol: 'NVDA',
-              date: new Date('2026-04-12T00:00:00.000Z'),
-              vrp_20: 0.19,
-              rank: 3,
-              selected: false,
-              vrp_percentile: 93,
-              iv_z: 1.2,
-              iv_z_percentile: 88,
-              iv_history_source: 'missing',
-              selection_reason: 'below_vrp_and_iv_z_threshold',
-              run_id: completedRun.run_id,
-            },
-          ];
-        }
+      findMany: jest
+        .fn()
+        .mockImplementation(
+          ({
+            where,
+            take,
+            skip,
+          }: {
+            where?: Record<string, unknown>;
+            take?: number;
+            skip?: number;
+          }) => {
+            if (where?.run_id === completedRun.run_id) {
+              return [
+                {
+                  symbol: 'AAPL',
+                  date: new Date('2026-04-12T00:00:00.000Z'),
+                  vrp_20: 0.25,
+                  rank: 1,
+                  selected: true,
+                  vrp_percentile: 99,
+                  iv_z: 2.5,
+                  iv_z_percentile: 98,
+                  iv_history_source: 'orats',
+                  selection_reason: 'selected',
+                  run_id: completedRun.run_id,
+                },
+                {
+                  symbol: 'MSFT',
+                  date: new Date('2026-04-12T00:00:00.000Z'),
+                  vrp_20: 0.21,
+                  rank: 2,
+                  selected: false,
+                  vrp_percentile: 94,
+                  iv_z: 2.9,
+                  iv_z_percentile: 96,
+                  iv_history_source: 'database_fallback',
+                  selection_reason: 'below_vrp_threshold',
+                  run_id: completedRun.run_id,
+                },
+                {
+                  symbol: 'NVDA',
+                  date: new Date('2026-04-12T00:00:00.000Z'),
+                  vrp_20: 0.19,
+                  rank: 3,
+                  selected: false,
+                  vrp_percentile: 93,
+                  iv_z: 1.2,
+                  iv_z_percentile: 88,
+                  iv_history_source: 'missing',
+                  selection_reason: 'below_vrp_and_iv_z_threshold',
+                  run_id: completedRun.run_id,
+                },
+              ];
+            }
 
-        const allSignals = [
-          {
-            symbol: 'AAPL',
-            date: new Date('2026-04-08T00:00:00.000Z'),
-            rank: 1,
-            selected: true,
-            vrp_20: 0.18,
-            iv_z: 1.7,
-            vrp_percentile: 97,
-            iv_z_percentile: 95,
-            iv_history_source: 'orats',
-            selection_reason: 'selected',
-            run_id: 'run_test_backtest',
-          },
-          {
-            symbol: 'AAPL',
-            date: new Date('2026-04-12T00:00:00.000Z'),
-            rank: 1,
-            selected: true,
-            vrp_percentile: 99,
-            iv_z_percentile: 98,
-            iv_history_source: 'orats',
-            selection_reason: 'selected',
-            run_id: completedRun.run_id,
-          },
-          {
-            symbol: 'MSFT',
-            date: new Date('2026-04-11T00:00:00.000Z'),
-            rank: 2,
-            selected: false,
-            vrp_percentile: 88,
-            iv_z_percentile: 71,
-            iv_history_source: 'database_fallback',
-            selection_reason: 'below_iv_z_threshold',
-            run_id: 'run_test_000',
-          },
-        ];
+            const allSignals = [
+              {
+                symbol: 'AAPL',
+                date: new Date('2026-04-08T00:00:00.000Z'),
+                rank: 1,
+                selected: true,
+                vrp_20: 0.18,
+                iv_z: 1.7,
+                vrp_percentile: 97,
+                iv_z_percentile: 95,
+                iv_history_source: 'orats',
+                selection_reason: 'selected',
+                run_id: 'run_test_backtest',
+              },
+              {
+                symbol: 'AAPL',
+                date: new Date('2026-04-12T00:00:00.000Z'),
+                rank: 1,
+                selected: true,
+                vrp_percentile: 99,
+                iv_z_percentile: 98,
+                iv_history_source: 'orats',
+                selection_reason: 'selected',
+                run_id: completedRun.run_id,
+              },
+              {
+                symbol: 'MSFT',
+                date: new Date('2026-04-11T00:00:00.000Z'),
+                rank: 2,
+                selected: false,
+                vrp_percentile: 88,
+                iv_z_percentile: 71,
+                iv_history_source: 'database_fallback',
+                selection_reason: 'below_iv_z_threshold',
+                run_id: 'run_test_000',
+              },
+            ];
 
-        const filtered = where?.symbol
-          ? allSignals.filter(signal => signal.symbol === where.symbol)
-          : allSignals;
-        const filteredBySelection = where?.selected === true
-          ? filtered.filter(signal => signal.selected)
-          : filtered;
-        const dateFilter = where?.date as { gte?: Date; lte?: Date } | undefined;
-        const filteredByDate = dateFilter
-          ? filteredBySelection.filter(signal => {
-              if (dateFilter.gte && signal.date < dateFilter.gte) {
+            const filtered = where?.symbol
+              ? allSignals.filter((signal) => signal.symbol === where.symbol)
+              : allSignals;
+            const filteredBySelection =
+              where?.selected === true
+                ? filtered.filter((signal) => signal.selected)
+                : filtered;
+            const dateFilter = where?.date as
+              | { gte?: Date; lte?: Date }
+              | undefined;
+            const filteredByDate = dateFilter
+              ? filteredBySelection.filter((signal) => {
+                  if (dateFilter.gte && signal.date < dateFilter.gte) {
+                    return false;
+                  }
+                  if (dateFilter.lte && signal.date > dateFilter.lte) {
+                    return false;
+                  }
+                  return true;
+                })
+              : filteredBySelection;
+
+            return filteredByDate.slice(
+              skip ?? 0,
+              (skip ?? 0) + (take ?? filteredByDate.length),
+            );
+          },
+        ),
+    },
+    market_bar: {
+      findMany: jest
+        .fn()
+        .mockImplementation(
+          ({ where }: { where?: Record<string, unknown> }) => {
+            const bars = [
+              {
+                symbol: 'AAPL',
+                date: new Date('2026-04-10T00:00:00.000Z'),
+                open: 100,
+                high: 111,
+                low: 99,
+                close: 110,
+                volume: BigInt(1000),
+                transactions: BigInt(10),
+                source: 'polygon_flat_file',
+              },
+              {
+                symbol: 'AAPL',
+                date: new Date('2026-04-09T00:00:00.000Z'),
+                open: 98,
+                high: 101,
+                low: 97,
+                close: 100,
+                volume: BigInt(900),
+                transactions: BigInt(9),
+                source: 'polygon_rest_api',
+              },
+              {
+                symbol: 'MSFT',
+                date: new Date('2026-04-10T00:00:00.000Z'),
+                open: 300,
+                high: 305,
+                low: 295,
+                close: 304,
+                volume: BigInt(1200),
+                transactions: BigInt(12),
+                source: 'polygon_rest_api',
+              },
+            ];
+
+            const dateFilter = where?.date as
+              | { gte?: Date; lte?: Date }
+              | undefined;
+            return bars.filter((bar) => {
+              if (
+                typeof where?.symbol === 'string' &&
+                bar.symbol !== where.symbol
+              ) {
                 return false;
               }
-              if (dateFilter.lte && signal.date > dateFilter.lte) {
+              if (dateFilter?.gte && bar.date < dateFilter.gte) {
+                return false;
+              }
+              if (dateFilter?.lte && bar.date > dateFilter.lte) {
                 return false;
               }
               return true;
-            })
-          : filteredBySelection;
-
-        return filteredByDate.slice(skip ?? 0, (skip ?? 0) + (take ?? filteredByDate.length));
-      }),
-    },
-    market_bar: {
-      findMany: jest.fn().mockImplementation(({ where }: { where?: Record<string, unknown> }) => {
-        const bars = [
-          {
-            symbol: 'AAPL',
-            date: new Date('2026-04-10T00:00:00.000Z'),
-            open: 100,
-            high: 111,
-            low: 99,
-            close: 110,
-            volume: BigInt(1000),
-            transactions: BigInt(10),
-            source: 'polygon_flat_file',
+            });
           },
-          {
-            symbol: 'AAPL',
-            date: new Date('2026-04-09T00:00:00.000Z'),
-            open: 98,
-            high: 101,
-            low: 97,
-            close: 100,
-            volume: BigInt(900),
-            transactions: BigInt(9),
-            source: 'polygon_rest_api',
-          },
-          {
-            symbol: 'MSFT',
-            date: new Date('2026-04-10T00:00:00.000Z'),
-            open: 300,
-            high: 305,
-            low: 295,
-            close: 304,
-            volume: BigInt(1200),
-            transactions: BigInt(12),
-            source: 'polygon_rest_api',
-          },
-        ];
-
-        const dateFilter = where?.date as { gte?: Date; lte?: Date } | undefined;
-        return bars.filter(bar => {
-          if (typeof where?.symbol === 'string' && bar.symbol !== where.symbol) {
-            return false;
-          }
-          if (dateFilter?.gte && bar.date < dateFilter.gte) {
-            return false;
-          }
-          if (dateFilter?.lte && bar.date > dateFilter.lte) {
-            return false;
-          }
-          return true;
-        });
-      }),
+        ),
       upsert: jest.fn(),
     },
     ingestion_run: {
@@ -233,17 +280,24 @@ describe('Bob API (integration)', () => {
       update: jest.fn().mockResolvedValue(undefined),
     },
     universe: {
-      findMany: jest.fn().mockImplementation(({ where }: { where?: Record<string, unknown> }) => {
-        return universeRows.filter(row => {
-          if (where?.active === true && !row.active) {
-            return false;
-          }
-          if (typeof where?.sector === 'string' && row.sector !== where.sector) {
-            return false;
-          }
-          return true;
-        });
-      }),
+      findMany: jest
+        .fn()
+        .mockImplementation(
+          ({ where }: { where?: Record<string, unknown> }) => {
+            return universeRows.filter((row) => {
+              if (where?.active === true && !row.active) {
+                return false;
+              }
+              if (
+                typeof where?.sector === 'string' &&
+                row.sector !== where.sector
+              ) {
+                return false;
+              }
+              return true;
+            });
+          },
+        ),
       groupBy: jest.fn().mockResolvedValue([
         { sector: 'Technology', _count: { symbol: 2 } },
         { sector: 'ETF', _count: { symbol: 1 } },
@@ -292,13 +346,22 @@ describe('Bob API (integration)', () => {
     });
 
     it('should filter by sector', async () => {
-      const result = await universeController.getUniverse(undefined, 'Technology');
+      const result = await universeController.getUniverse(
+        undefined,
+        'Technology',
+      );
 
-      expect(result.symbols.every((row: { sector: string }) => row.sector === 'Technology')).toBe(true);
+      expect(
+        result.symbols.every(
+          (row: { sector: string }) => row.sector === 'Technology',
+        ),
+      ).toBe(true);
     });
 
     it('should reject invalid active_only values', async () => {
-      await expect(universeController.getUniverse('yes')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        universeController.getUniverse('yes'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -328,7 +391,14 @@ describe('Bob API (integration)', () => {
 
   describe('GET /api/signals/history', () => {
     it('should return paginated signal history', async () => {
-      const result = await signalsController.getHistory(undefined, undefined, undefined, undefined, '1', '10');
+      const result = await signalsController.getHistory(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        '1',
+        '10',
+      );
 
       expect(result.signals).toBeDefined();
       expect(result.pagination).toBeDefined();
@@ -337,7 +407,16 @@ describe('Bob API (integration)', () => {
     });
 
     it('should reject invalid pagination input', async () => {
-      await expect(signalsController.getHistory(undefined, undefined, undefined, undefined, 'abc', '10')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        signalsController.getHistory(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          'abc',
+          '10',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -423,7 +502,10 @@ describe('Bob API (integration)', () => {
 
   describe('GET /api/market/coverage', () => {
     it('should summarize local coverage for a date range', async () => {
-      const result = await marketDataController.getCoverage('2026-04-09', '2026-04-10');
+      const result = await marketDataController.getCoverage(
+        '2026-04-09',
+        '2026-04-10',
+      );
 
       expect(result.summary).toMatchObject({
         active_symbols: 3,
@@ -441,7 +523,14 @@ describe('Bob API (integration)', () => {
 
   describe('GET /api/research/backtest', () => {
     it('should backtest persisted selected signals against stored bars', async () => {
-      const result = await researchController.backtestSignals(undefined, undefined, undefined, '2026-04-01', '2026-04-10', '2');
+      const result = await researchController.backtestSignals(
+        undefined,
+        undefined,
+        undefined,
+        '2026-04-01',
+        '2026-04-10',
+        '2',
+      );
 
       expect(result.summary).toMatchObject({
         total_signals: 1,
@@ -459,19 +548,31 @@ describe('Bob API (integration)', () => {
 
     it('should reject reversed signal date ranges', async () => {
       await expect(
-        researchController.backtestSignals(undefined, undefined, undefined, '2026-04-10', '2026-04-01'),
+        researchController.backtestSignals(
+          undefined,
+          undefined,
+          undefined,
+          '2026-04-10',
+          '2026-04-01',
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
   describe('POST /api/analysis/trigger', () => {
     it('should reject cron trigger without API key', async () => {
-      await expect(analysisController.triggerAnalysis(undefined, 'cron')).rejects.toBeInstanceOf(HttpException);
-      await expect(analysisController.triggerAnalysis(undefined, 'cron')).rejects.toMatchObject({ status: 401 });
+      await expect(
+        analysisController.triggerAnalysis(undefined, 'cron'),
+      ).rejects.toBeInstanceOf(HttpException);
+      await expect(
+        analysisController.triggerAnalysis(undefined, 'cron'),
+      ).rejects.toMatchObject({ status: 401 });
     });
 
     it('should reject unsupported trigger sources', async () => {
-      await expect(analysisController.triggerAnalysis(undefined, 'timer')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        analysisController.triggerAnalysis(undefined, 'timer'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

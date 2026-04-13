@@ -1,8 +1,19 @@
-import { BadRequestException, Controller, Get, Query, Logger, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Query,
+  Logger,
+  Res,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Response } from 'express';
-import { parseBooleanQuery, parseDateQuery, parseIntegerQuery } from '../common/query.utils.js';
+import {
+  parseBooleanQuery,
+  parseDateQuery,
+  parseIntegerQuery,
+} from '../common/query.utils.js';
 
 @ApiTags('Signals')
 @Controller('api/signals')
@@ -12,8 +23,17 @@ export class SignalsController {
   constructor(private prisma: PrismaService) {}
 
   @Get('latest')
-  @ApiOperation({ summary: 'Get latest signals', description: 'Returns the top signals from the most recent completed analysis run' })
-  @ApiQuery({ name: 'selected_only', required: false, type: Boolean, description: 'Only return selected (top) signals' })
+  @ApiOperation({
+    summary: 'Get latest signals',
+    description:
+      'Returns the top signals from the most recent completed analysis run',
+  })
+  @ApiQuery({
+    name: 'selected_only',
+    required: false,
+    type: Boolean,
+    description: 'Only return selected (top) signals',
+  })
   @ApiResponse({ status: 200, description: 'Latest signals' })
   async getLatest(
     @Query('selected_only') selectedOnly?: string,
@@ -29,7 +49,11 @@ export class SignalsController {
     });
 
     if (!latestRun) {
-      return { run: null, signals: [], message: 'No completed analysis runs found' };
+      return {
+        run: null,
+        signals: [],
+        message: 'No completed analysis runs found',
+      };
     }
 
     const where: Record<string, unknown> = { run_id: latestRun.run_id };
@@ -55,13 +79,46 @@ export class SignalsController {
   }
 
   @Get('history')
-  @ApiOperation({ summary: 'Get signal history', description: 'Returns historical signals with pagination and filters' })
-  @ApiQuery({ name: 'symbol', required: false, type: String, description: 'Filter by symbol' })
-  @ApiQuery({ name: 'selected_only', required: false, type: Boolean, description: 'Only return selected signals' })
-  @ApiQuery({ name: 'from_date', required: false, type: String, description: 'Start date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'to_date', required: false, type: String, description: 'End date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default 50, max 200)' })
+  @ApiOperation({
+    summary: 'Get signal history',
+    description: 'Returns historical signals with pagination and filters',
+  })
+  @ApiQuery({
+    name: 'symbol',
+    required: false,
+    type: String,
+    description: 'Filter by symbol',
+  })
+  @ApiQuery({
+    name: 'selected_only',
+    required: false,
+    type: Boolean,
+    description: 'Only return selected signals',
+  })
+  @ApiQuery({
+    name: 'from_date',
+    required: false,
+    type: String,
+    description: 'Start date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'to_date',
+    required: false,
+    type: String,
+    description: 'End date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 50, max 200)',
+  })
   @ApiResponse({ status: 200, description: 'Signal history with pagination' })
   async getHistory(
     @Query('symbol') symbol?: string,
@@ -82,7 +139,9 @@ export class SignalsController {
     const parsedToDate = parseDateQuery(toDate, 'to_date');
 
     if (parsedFromDate && parsedToDate && parsedFromDate > parsedToDate) {
-      throw new BadRequestException('from_date must be earlier than or equal to to_date');
+      throw new BadRequestException(
+        'from_date must be earlier than or equal to to_date',
+      );
     }
 
     const where: Record<string, unknown> = {};
@@ -90,7 +149,8 @@ export class SignalsController {
     if (selectedOnlyValue) where.selected = true;
     if (parsedFromDate || parsedToDate) {
       where.date = {};
-      if (parsedFromDate) (where.date as Record<string, Date>).gte = parsedFromDate;
+      if (parsedFromDate)
+        (where.date as Record<string, Date>).gte = parsedFromDate;
       if (parsedToDate) (where.date as Record<string, Date>).lte = parsedToDate;
     }
 

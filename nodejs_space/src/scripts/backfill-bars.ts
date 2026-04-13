@@ -1,7 +1,10 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
-import { MarketDataService, normalizeDateOnly } from '../market-data/market-data.service.js';
+import {
+  MarketDataService,
+  normalizeDateOnly,
+} from '../market-data/market-data.service.js';
 
 async function main() {
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -12,14 +15,18 @@ async function main() {
     const fromArg = process.argv[2];
     const toArg = process.argv[3];
     if (!fromArg || !toArg) {
-      throw new Error('Usage: corepack yarn backfill:bars <from YYYY-MM-DD> <to YYYY-MM-DD>');
+      throw new Error(
+        'Usage: corepack yarn backfill:bars <from YYYY-MM-DD> <to YYYY-MM-DD>',
+      );
     }
 
-    const result = await app.get(MarketDataService).backfillHistoricalBars(
-      parseDateArg(fromArg, 'from'),
-      parseDateArg(toArg, 'to'),
-      'manual',
-    );
+    const result = await app
+      .get(MarketDataService)
+      .backfillHistoricalBars(
+        parseDateArg(fromArg, 'from'),
+        parseDateArg(toArg, 'to'),
+        'manual',
+      );
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } finally {
     await app.close();

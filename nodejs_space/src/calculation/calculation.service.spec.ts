@@ -9,7 +9,9 @@ describe('CalculationService', () => {
   });
 
   it('extracts ATM IV from a matched call/put pair at the closest strike', () => {
-    const expiration = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const expiration = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
     const options: OptionContract[] = [
       {
         ticker: 'TESTC100',
@@ -40,7 +42,9 @@ describe('CalculationService', () => {
   });
 
   it('returns null when there is no matched call/put pair at the same strike and expiration', () => {
-    const expiration = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const expiration = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
     const options: OptionContract[] = [
       {
         ticker: 'TESTC100',
@@ -75,13 +79,21 @@ describe('CalculationService', () => {
   });
 
   it('computes IV z-score only from real historical IV observations', () => {
-    const historicalIvs = Array.from({ length: 20 }, (_, index) => 0.2 + index * 0.01);
+    const historicalIvs = Array.from(
+      { length: 20 },
+      (_, index) => 0.2 + index * 0.01,
+    );
 
-    expect(service.calculateIvZScoreFromHistory(0.5, historicalIvs)).toBeGreaterThan(0);
+    expect(
+      service.calculateIvZScoreFromHistory(0.5, historicalIvs),
+    ).toBeGreaterThan(0);
   });
 
   it('returns null IV z-score when real IV history is insufficient', () => {
-    const historicalIvs = Array.from({ length: 5 }, (_, index) => 0.2 + index * 0.01);
+    const historicalIvs = Array.from(
+      { length: 5 },
+      (_, index) => 0.2 + index * 0.01,
+    );
 
     expect(service.calculateIvZScoreFromHistory(0.5, historicalIvs)).toBeNull();
   });
@@ -89,9 +101,33 @@ describe('CalculationService', () => {
   it('ranks and selects top candidates that meet both thresholds', () => {
     const result = service.rankAndSelect(
       [
-        { symbol: 'AAA', atm_iv: 0.5, hv_10: 0.2, hv_20: 0.2, hv_60: 0.2, vrp_20: 0.3, iv_z: 4 },
-        { symbol: 'BBB', atm_iv: 0.45, hv_10: 0.2, hv_20: 0.21, hv_60: 0.2, vrp_20: 0.24, iv_z: 3.5 },
-        { symbol: 'CCC', atm_iv: 0.3, hv_10: 0.25, hv_20: 0.26, hv_60: 0.26, vrp_20: 0.04, iv_z: 0.7 },
+        {
+          symbol: 'AAA',
+          atm_iv: 0.5,
+          hv_10: 0.2,
+          hv_20: 0.2,
+          hv_60: 0.2,
+          vrp_20: 0.3,
+          iv_z: 4,
+        },
+        {
+          symbol: 'BBB',
+          atm_iv: 0.45,
+          hv_10: 0.2,
+          hv_20: 0.21,
+          hv_60: 0.2,
+          vrp_20: 0.24,
+          iv_z: 3.5,
+        },
+        {
+          symbol: 'CCC',
+          atm_iv: 0.3,
+          hv_10: 0.25,
+          hv_20: 0.26,
+          hv_60: 0.26,
+          vrp_20: 0.04,
+          iv_z: 0.7,
+        },
       ],
       30,
       30,
@@ -102,26 +138,62 @@ describe('CalculationService', () => {
     expect(result.ranked[0].selected).toBe(true);
     expect(result.ranked[0].selection_reason).toBe('selected');
     expect(result.ranked[1].selected).toBe(false);
-    expect(result.ranked[1].selection_reason).toBe('passed_thresholds_but_outside_top_n');
+    expect(result.ranked[1].selection_reason).toBe(
+      'passed_thresholds_but_outside_top_n',
+    );
     expect(result.ranked[2].selected).toBe(false);
-    expect(result.ranked[2].selection_reason).toBe('below_vrp_and_iv_z_threshold');
+    expect(result.ranked[2].selection_reason).toBe(
+      'below_vrp_and_iv_z_threshold',
+    );
   });
 
   it('marks the blocking threshold when a rankable name misses selection', () => {
     const result = service.rankAndSelect(
       [
-        { symbol: 'AAA', atm_iv: 0.5, hv_10: 0.2, hv_20: 0.2, hv_60: 0.2, vrp_20: 0.3, iv_z: 1 },
-        { symbol: 'BBB', atm_iv: 0.45, hv_10: 0.2, hv_20: 0.21, hv_60: 0.2, vrp_20: 0.25, iv_z: 4 },
-        { symbol: 'CCC', atm_iv: 0.3, hv_10: 0.25, hv_20: 0.26, hv_60: 0.26, vrp_20: 0.2, iv_z: 3 },
-        { symbol: 'DDD', atm_iv: 0.28, hv_10: 0.22, hv_20: 0.24, hv_60: 0.25, vrp_20: 0.05, iv_z: 0.5 },
+        {
+          symbol: 'AAA',
+          atm_iv: 0.5,
+          hv_10: 0.2,
+          hv_20: 0.2,
+          hv_60: 0.2,
+          vrp_20: 0.3,
+          iv_z: 1,
+        },
+        {
+          symbol: 'BBB',
+          atm_iv: 0.45,
+          hv_10: 0.2,
+          hv_20: 0.21,
+          hv_60: 0.2,
+          vrp_20: 0.25,
+          iv_z: 4,
+        },
+        {
+          symbol: 'CCC',
+          atm_iv: 0.3,
+          hv_10: 0.25,
+          hv_20: 0.26,
+          hv_60: 0.26,
+          vrp_20: 0.2,
+          iv_z: 3,
+        },
+        {
+          symbol: 'DDD',
+          atm_iv: 0.28,
+          hv_10: 0.22,
+          hv_20: 0.24,
+          hv_60: 0.25,
+          vrp_20: 0.05,
+          iv_z: 0.5,
+        },
       ],
       50,
       50,
       3,
     );
 
-    const aaa = result.ranked.find(feature => feature.symbol === 'AAA');
-    const bbb = result.ranked.find(feature => feature.symbol === 'BBB');
+    const aaa = result.ranked.find((feature) => feature.symbol === 'AAA');
+    const bbb = result.ranked.find((feature) => feature.symbol === 'BBB');
 
     expect(aaa?.selection_reason).toBe('below_iv_z_threshold');
     expect(bbb?.selection_reason).toBe('selected');

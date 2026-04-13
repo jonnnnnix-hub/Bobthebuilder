@@ -17,7 +17,9 @@ async function main() {
       selectedOnly: true,
       fromDate: fromArg ? parseDateArg(fromArg, 'from') : undefined,
       toDate: toArg ? parseDateArg(toArg, 'to') : undefined,
-      horizonDays: horizonArg ? parsePositiveInteger(horizonArg, 'horizon_days') : 5,
+      horizonDays: horizonArg
+        ? parsePositiveInteger(horizonArg, 'horizon_days')
+        : 5,
       limit: 100,
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

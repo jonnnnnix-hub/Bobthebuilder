@@ -10,7 +10,10 @@ export class HealthController {
   constructor(private prisma: PrismaService) {}
 
   @Get('health')
-  @ApiOperation({ summary: 'Health check', description: 'Returns service health status and database connectivity' })
+  @ApiOperation({
+    summary: 'Health check',
+    description: 'Returns service health status and database connectivity',
+  })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   async healthCheck() {
     if (!this.prisma.isConnected()) {
@@ -32,11 +35,13 @@ export class HealthController {
       dbStatus = 'error';
     }
 
-    const latestRun = await this.prisma.analysis_run.findFirst({
-      where: { status: 'completed' },
-      orderBy: { started_at: 'desc' },
-      select: { run_id: true, started_at: true, signals_generated: true },
-    }).catch(() => null);
+    const latestRun = await this.prisma.analysis_run
+      .findFirst({
+        where: { status: 'completed' },
+        orderBy: { started_at: 'desc' },
+        select: { run_id: true, started_at: true, signals_generated: true },
+      })
+      .catch(() => null);
 
     return {
       status: 'ok',

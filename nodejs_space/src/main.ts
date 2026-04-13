@@ -22,20 +22,26 @@ async function bootstrap() {
   const swaggerPath = 'api-docs';
 
   // Prevent caching of swagger docs
-  app.use(`/${swaggerPath}`, (req: Request, res: Response, next: NextFunction) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
-    next();
-  });
+  app.use(
+    `/${swaggerPath}`,
+    (req: Request, res: Response, next: NextFunction) => {
+      res.setHeader(
+        'Cache-Control',
+        'no-store, no-cache, must-revalidate, proxy-revalidate',
+      );
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      next();
+    },
+  );
 
   const config = new DocumentBuilder()
     .setTitle('Bob - Options Volatility Signal Generator')
     .setDescription(
       'Phase 1: Signal generation system for options volatility trading. ' +
-      'Computes ATM IV, Historical Volatility, VRP, and IV z-scores across a universe of liquid stocks/ETFs using real observed history only. ' +
-      'Identifies top candidates based on cross-sectional ranking with VRP >= 95th percentile and IV z-score >= 92.5th percentile thresholds.'
+        'Computes ATM IV, Historical Volatility, VRP, and IV z-scores across a universe of liquid stocks/ETFs using real observed history only. ' +
+        'Identifies top candidates based on cross-sectional ranking with VRP >= 95th percentile and IV z-score >= 92.5th percentile thresholds.',
     )
     .setVersion('1.0.0')
     .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'api-key')
@@ -65,7 +71,13 @@ async function bootstrap() {
   const port = Number(process.env.PORT ?? 3000);
   const host = process.env.HOST ?? '127.0.0.1';
   await app.listen(port, host);
-  Logger.log(`Bob Signal Generator running on http://${host}:${port}`, 'Bootstrap');
-  Logger.log(`API Documentation: http://${host}:${port}/${swaggerPath}`, 'Bootstrap');
+  Logger.log(
+    `Bob Signal Generator running on http://${host}:${port}`,
+    'Bootstrap',
+  );
+  Logger.log(
+    `API Documentation: http://${host}:${port}/${swaggerPath}`,
+    'Bootstrap',
+  );
 }
 bootstrap();

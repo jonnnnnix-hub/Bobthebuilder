@@ -1,7 +1,15 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StrategyService } from '../strategy/strategy.service.js';
-import type { StrategyType, LegDefinition } from '../strategy/strategy.service.js';
+import type {
+  StrategyType,
+  LegDefinition,
+} from '../strategy/strategy.service.js';
 
 export interface CreateTradeFromSignalInput {
   signal_id: number;
@@ -49,7 +57,9 @@ export class TradeService {
     private strategyService: StrategyService,
   ) {}
 
-  async createTradeFromSignal(input: CreateTradeFromSignalInput): Promise<TradeWithLegs> {
+  async createTradeFromSignal(
+    input: CreateTradeFromSignalInput,
+  ): Promise<TradeWithLegs> {
     const signal = await this.prisma.signal.findUnique({
       where: { id: input.signal_id },
     });
@@ -59,7 +69,9 @@ export class TradeService {
     }
 
     if (!signal.selected) {
-      throw new BadRequestException(`Signal ${input.signal_id} was not selected — cannot create trade`);
+      throw new BadRequestException(
+        `Signal ${input.signal_id} was not selected — cannot create trade`,
+      );
     }
 
     const suggestion = this.strategyService.suggestStrategy({
@@ -100,7 +112,7 @@ export class TradeService {
         contracts,
         notes: input.notes ?? suggestion.reason,
         legs: {
-          create: legs.map(leg => ({
+          create: legs.map((leg) => ({
             option_type: leg.option_type,
             strike: leg.strike,
             expiration: expirationDate,
@@ -113,11 +125,16 @@ export class TradeService {
       include: { legs: true },
     });
 
-    this.logger.log(`Trade ${trade.id} created for ${signal.symbol} (${suggestion.strategy})`);
+    this.logger.log(
+      `Trade ${trade.id} created for ${signal.symbol} (${suggestion.strategy})`,
+    );
     return trade as TradeWithLegs;
   }
 
-  async openTrade(tradeId: number, entryCredit?: number): Promise<TradeWithLegs> {
+  async openTrade(
+    tradeId: number,
+    entryCredit?: number,
+  ): Promise<TradeWithLegs> {
     const trade = await this.prisma.trade.findUnique({
       where: { id: tradeId },
       include: { legs: true },
@@ -128,7 +145,9 @@ export class TradeService {
     }
 
     if (trade.status !== 'pending') {
-      throw new BadRequestException(`Trade ${tradeId} is ${trade.status}, expected pending`);
+      throw new BadRequestException(
+        `Trade ${tradeId} is ${trade.status}, expected pending`,
+      );
     }
 
     const updated = await this.prisma.trade.update({
@@ -145,7 +164,10 @@ export class TradeService {
     return updated as TradeWithLegs;
   }
 
-  async closeTrade(tradeId: number, exitDebit?: number): Promise<TradeWithLegs> {
+  async closeTrade(
+    tradeId: number,
+    exitDebit?: number,
+  ): Promise<TradeWithLegs> {
     const trade = await this.prisma.trade.findUnique({
       where: { id: tradeId },
       include: { legs: true },
@@ -156,15 +178,19 @@ export class TradeService {
     }
 
     if (trade.status !== 'open' && trade.status !== 'closing') {
-      throw new BadRequestException(`Trade ${tradeId} is ${trade.status}, expected open or closing`);
+      throw new BadRequestException(
+        `Trade ${tradeId} is ${trade.status}, expected open or closing`,
+      );
     }
 
-    const pnl = trade.entry_credit != null && exitDebit != null
-      ? (trade.entry_credit - exitDebit) * trade.contracts * 100
-      : null;
-    const pnlPct = pnl != null && trade.entry_credit != null && trade.entry_credit > 0
-      ? (pnl / (trade.entry_credit * trade.contracts * 100)) * 100
-      : null;
+    const pnl =
+      trade.entry_credit != null && exitDebit != null
+        ? (trade.entry_credit - exitDebit) * trade.contracts * 100
+        : null;
+    const pnlPct =
+      pnl != null && trade.entry_credit != null && trade.entry_credit > 0
+        ? (pnl / (trade.entry_credit * trade.contracts * 100)) * 100
+        : null;
 
     const updated = await this.prisma.trade.update({
       where: { id: tradeId },
@@ -193,7 +219,9 @@ export class TradeService {
     }
 
     if (trade.status === 'closed' || trade.status === 'cancelled') {
-      throw new BadRequestException(`Trade ${tradeId} is already ${trade.status}`);
+      throw new BadRequestException(
+        `Trade ${tradeId} is already ${trade.status}`,
+      );
     }
 
     const updated = await this.prisma.trade.update({
@@ -220,7 +248,15 @@ export class TradeService {
     status?: string;
     page?: number;
     limit?: number;
-  }): Promise<{ trades: TradeWithLegs[]; pagination: { page: number; limit: number; total: number; total_pages: number } }> {
+  }): Promise<{
+    trades: TradeWithLegs[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      total_pages: number;
+    };
+  }> {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
     const where: Record<string, unknown> = {};

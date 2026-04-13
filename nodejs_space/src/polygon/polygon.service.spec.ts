@@ -131,16 +131,20 @@ describe('PolygonService', () => {
         }),
       }),
     );
-    expect((getMock.mock.calls[3] as [{}, { params: Record<string, unknown> }])[1].params).not.toHaveProperty('strike_price.gte');
-    expect((getMock.mock.calls[3] as [{}, { params: Record<string, unknown> }])[1].params).not.toHaveProperty('strike_price.lte');
+    expect(
+      (getMock.mock.calls[3] as [{}, { params: Record<string, unknown> }])[1]
+        .params,
+    ).not.toHaveProperty('strike_price.gte');
+    expect(
+      (getMock.mock.calls[3] as [{}, { params: Record<string, unknown> }])[1]
+        .params,
+    ).not.toHaveProperty('strike_price.lte');
   });
 
   it('fetches a historical daily bar range for backfills', async () => {
     getMock.mockResolvedValue({
       data: {
-        results: [
-          { o: 100, h: 102, l: 99, c: 101, v: 1000, t: 1712793600000 },
-        ],
+        results: [{ o: 100, h: 102, l: 99, c: 101, v: 1000, t: 1712793600000 }],
       },
     });
 

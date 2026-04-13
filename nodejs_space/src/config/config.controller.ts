@@ -11,7 +11,10 @@ export class ConfigController {
   constructor(private prisma: PrismaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get configuration', description: 'Returns all system configuration settings' })
+  @ApiOperation({
+    summary: 'Get configuration',
+    description: 'Returns all system configuration settings',
+  })
   @ApiResponse({ status: 200, description: 'Configuration settings' })
   async getConfig(@Res({ passthrough: true }) res?: Response) {
     res?.setHeader('Cache-Control', 'no-store');
@@ -20,7 +23,10 @@ export class ConfigController {
       orderBy: { key: 'asc' },
     });
 
-    const configMap: Record<string, { value: string; description: string | null }> = {};
+    const configMap: Record<
+      string,
+      { value: string; description: string | null }
+    > = {};
     for (const c of configs) {
       configMap[c.key] = { value: c.value, description: c.description };
     }

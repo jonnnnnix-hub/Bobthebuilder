@@ -15,7 +15,9 @@ async function main() {
   try {
     const dateArg = process.argv[2];
     const targetDate = dateArg ? parseDateArg(dateArg) : defaultIngestionDate();
-    const result = await app.get(MarketDataService).ingestDayAggregates(targetDate, 'manual');
+    const result = await app
+      .get(MarketDataService)
+      .ingestDayAggregates(targetDate, 'manual');
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } finally {
     await app.close();
