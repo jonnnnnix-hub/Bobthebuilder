@@ -1,0 +1,28 @@
+name: Daily Signal Generation
+
+on:
+  schedule:
+    # Weekdays 4:30 PM ET (21:30 UTC) after market close
+    - cron: "30 21 * * 1-5"
+
+jobs:
+  trigger-signals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ingest market data
+        run: |
+          for i in 1 2 3; do
+            curl -sf -X POST https://bob-signals.fly.dev/api/market/ingest \
+              -H "x-api-key: ${{ secrets.CRON_API_KEY }}" && break
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+
+      - name: Trigger analysis
+        run: |
+          for i in 1 2 3; do
+            curl -sf -X POST https://bob-signals.fly.dev/api/analysis/trigger \
+              -H "x-api-key: ${{ secrets.CRON_API_KEY }}" && break
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
