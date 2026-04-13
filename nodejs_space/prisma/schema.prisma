@@ -45,6 +45,8 @@ model signal {
   universe_rel universe? @relation(fields: [symbol], references: [symbol])
   analysis_run analysis_run? @relation(fields: [run_id], references: [run_id])
   trades       trade[]
+  backtest_results backtest_result[]
+  agent_votes  agent_vote[]
 
   @@unique([symbol, date, run_id])
   @@index([date])
@@ -119,6 +121,169 @@ model ingestion_run {
   @@index([status])
 }
 
+model option_chain_snapshot {
+  id                BigInt   @id @default(autoincrement())
+  snapshot_date     DateTime @db.Date
+  snapshot_ts       DateTime
+  underlying_symbol String   @db.VarChar(20)
+  option_symbol     String   @db.VarChar(40)
+  expiration        DateTime @db.Date
+  strike            Decimal  @db.Decimal(12, 4)
+  option_type       String   @db.VarChar(4)
+  bid               Decimal? @db.Decimal(12, 4)
+  ask               Decimal? @db.Decimal(12, 4)
+  mid               Decimal? @db.Decimal(12, 4)
+  last              Decimal? @db.Decimal(12, 4)
+  mark              Decimal? @db.Decimal(12, 4)
+  volume            Int?
+  open_interest     Int?
+  implied_volatility Decimal? @db.Decimal(12, 6)
+  delta             Decimal? @db.Decimal(12, 6)
+  gamma             Decimal? @db.Decimal(12, 6)
+  theta             Decimal? @db.Decimal(12, 6)
+  vega              Decimal? @db.Decimal(12, 6)
+  rho               Decimal? @db.Decimal(12, 6)
+  source_primary    String   @db.VarChar(40)
+  source_secondary  String?  @db.VarChar(40)
+  freshness_tier    String   @default("intraday") @db.VarChar(20)
+  quality_status    String   @default("valid") @db.VarChar(30)
+  quality_flags     Json?
+  raw_payload       Json?
+  created_at        DateTime @default(now())
+
+  @@unique([snapshot_ts, option_symbol, source_primary])
+  @@index([underlying_symbol, snapshot_date])
+  @@index([underlying_symbol, expiration, strike, option_type])
+  @@index([quality_status, snapshot_date])
+}
+
+model backtest_result {
+  id                    BigInt   @id @default(autoincrement())
+  backtest_run_id       String   @db.VarChar(80)
+  signal_id             Int?
+  trade_id              Int?
+  symbol                String   @db.VarChar(20)
+  strategy              String   @db.VarChar(40)
+  entry_date            DateTime @db.Date
+  exit_date             DateTime? @db.Date
+  status                String   @db.VarChar(30)
+  fill_policy_version   String   @db.VarChar(40)
+  entry_fill_details    Json
+  exit_fill_details     Json?
+  legs                  Json
+  fees                  Decimal? @db.Decimal(12, 4)
+  slippage              Decimal? @db.Decimal(12, 4)
+  gross_pnl             Decimal? @db.Decimal(14, 4)
+  net_pnl               Decimal? @db.Decimal(14, 4)
+  return_pct            Decimal? @db.Decimal(12, 6)
+  max_drawdown_pct      Decimal? @db.Decimal(12, 6)
+  quality_flags         Json?
+  created_at            DateTime @default(now())
+
+  signal_rel            signal?  @relation(fields: [signal_id], references: [id])
+  trade_rel             trade?   @relation(fields: [trade_id], references: [id])
+  loss_autopsies        loss_autopsy[]
+
+  @@index([backtest_run_id])
+  @@index([symbol, entry_date])
+  @@index([status])
+  @@index([signal_id])
+  @@index([trade_id])
+}
+
+model agent_vote {
+  id                 BigInt   @id @default(autoincrement())
+  run_id             String   @db.VarChar(80)
+  signal_id          Int?
+  model_iteration_id BigInt?
+  agent_name         String   @db.VarChar(80)
+  agent_role         String?  @db.VarChar(80)
+  round_number       Int
+  vote               String   @db.VarChar(20)
+  confidence_score   Decimal? @db.Decimal(6, 4)
+  score              Decimal? @db.Decimal(10, 4)
+  rationale          String?  @db.Text
+  challenge_to       String?  @db.VarChar(80)
+  transcript         Json?
+  created_at         DateTime @default(now())
+
+  signal_rel         signal?  @relation(fields: [signal_id], references: [id])
+  model_iteration_rel model_iteration? @relation(fields: [model_iteration_id], references: [id])
+
+  @@index([run_id, round_number])
+  @@index([agent_name])
+  @@index([signal_id])
+  @@index([model_iteration_id])
+}
+
+model loss_autopsy {
+  id                    BigInt   @id @default(autoincrement())
+  backtest_result_id    BigInt?
+  model_iteration_id    BigInt?
+  symbol                String   @db.VarChar(20)
+  trade_date            DateTime @db.Date
+  root_cause            String   @db.VarChar(120)
+  severity              String   @default("medium") @db.VarChar(20)
+  hypothesis            String?  @db.Text
+  evidence              Json?
+  proposed_actions      Json?
+  confidence_score      Decimal? @db.Decimal(6, 4)
+  reviewed_by           String?  @db.VarChar(80)
+  created_at            DateTime @default(now())
+
+  backtest_result_rel   backtest_result? @relation(fields: [backtest_result_id], references: [id])
+  model_iteration_rel   model_iteration? @relation(fields: [model_iteration_id], references: [id])
+
+  @@index([symbol, trade_date])
+  @@index([root_cause])
+  @@index([backtest_result_id])
+  @@index([model_iteration_id])
+}
+
+model model_iteration {
+  id                      BigInt   @id @default(autoincrement())
+  iteration_key           String   @unique @db.VarChar(80)
+  parent_iteration_key    String?  @db.VarChar(80)
+  model_version           String   @db.VarChar(80)
+  status                  String   @default("draft") @db.VarChar(30)
+  objective               String?  @db.VarChar(120)
+  parameter_snapshot      Json
+  parameter_diff          Json?
+  in_sample_metrics       Json?
+  out_of_sample_metrics   Json?
+  proposed_by             String   @default("system") @db.VarChar(40)
+  approved_by             String?  @db.VarChar(80)
+  approved_at             DateTime?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  agent_votes             agent_vote[]
+  loss_autopsies          loss_autopsy[]
+
+  @@index([status, created_at])
+  @@index([model_version])
+}
+
+model fill_policy_config {
+  id                        BigInt   @id @default(autoincrement())
+  policy_name               String   @unique @db.VarChar(80)
+  version                   String   @db.VarChar(40)
+  is_default                Boolean  @default(false)
+  slippage_bps              Decimal  @default(0) @db.Decimal(10, 4)
+  commission_per_contract   Decimal  @default(0) @db.Decimal(10, 4)
+  impact_enabled            Boolean  @default(true)
+  impact_coefficient        Decimal  @default(0) @db.Decimal(10, 6)
+  impact_exponent           Decimal  @default(1) @db.Decimal(10, 6)
+  spread_participation_rate Decimal  @default(0.5) @db.Decimal(10, 6)
+  min_fill_fraction         Decimal  @default(1) @db.Decimal(10, 6)
+  notes                     String?  @db.Text
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+
+  @@unique([policy_name, version])
+  @@index([is_default])
+}
+
 model trade {
   id           Int       @id @default(autoincrement())
   signal_id    Int?
@@ -141,6 +306,7 @@ model trade {
   legs         trade_leg[]
   snapshots    position_snapshot[]
   risk_checks  risk_check[]
+  backtest_results backtest_result[]
 
   @@index([symbol])
   @@index([status])
@@ -201,3 +367,4 @@ model risk_check {
   @@index([trade_id])
   @@index([check_type])
 }
+

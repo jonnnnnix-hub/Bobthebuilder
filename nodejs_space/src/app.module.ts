@@ -15,6 +15,8 @@ import { StrategyModule } from './strategy/strategy.module.js';
 import { TradeModule } from './trade/trade.module.js';
 import { PositionModule } from './position/position.module.js';
 import { RiskModule } from './risk/risk.module.js';
+import { OptionsDataModule } from './options-data/options-data.module.js';
+import { OptionsIngestionModule } from './options-ingestion/options-ingestion.module.js';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { RiskModule } from './risk/risk.module.js';
     PrismaModule,
     PolygonModule,
     MarketDataModule,
+    OptionsDataModule,
+    OptionsIngestionModule,
     CalculationModule,
     OratsModule,
     AnalysisModule,

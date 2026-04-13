@@ -14,6 +14,27 @@ Backtesting rule: never use simulated, proxy, or fake volatility data. Historica
 - ORATS historical implied-volatility data
 - Swagger at `/api-docs`
 
+## Phase 0 progress (Data Foundation)
+
+Completed in this milestone:
+
+- Added new Prisma models and migration for:
+  - `option_chain_snapshot`
+  - `backtest_result`
+  - `agent_vote`
+  - `loss_autopsy`
+  - `model_iteration`
+  - `fill_policy_config`
+- Introduced dual-source options data architecture:
+  - provider abstraction
+  - Polygon provider
+  - ORATS provider
+  - merge + fallback routing
+  - quality validation and provenance flags
+- Added `OptionsIngestionService` for snapshot ingestion and historical backfill.
+- Added `backfill:options` script for historical options chain backfills.
+- Expanded automated tests with new unit + e2e coverage for options data foundation modules.
+
 ## Required environment variables
 
 Create `.env` with:
@@ -22,6 +43,7 @@ Create `.env` with:
 DATABASE_URL=postgresql://...
 ORATS_API_KEY=your-orats-token
 ORATS_SYMBOL_OVERRIDES=BRK.B=BRK-B|BRKB
+ORATS_OPTIONS_CHAIN_PATH=/hist/strikes
 POLYGON_API_KEY=your-polygon-key
 POLYGON_FLAT_FILES_KEY=your-flat-files-access-key
 POLYGON_FLAT_FILES_SECRET=your-flat-files-secret
@@ -131,6 +153,12 @@ Backfill a real historical range from Polygon REST into `market_bar`:
 
 ```bash
 corepack yarn backfill:bars 2025-10-01 2026-04-10
+```
+
+Backfill historical options chain snapshots using dual-source merge (Polygon + ORATS):
+
+```bash
+corepack yarn backfill:options 2026-01-02 2026-04-10 AAPL,MSFT
 ```
 
 Run the research backtest over persisted selected signals:
