@@ -1,3 +1,4 @@
+---
 name: CI & Deploy
 
 on:
@@ -14,14 +15,29 @@ jobs:
         with:
           node-version: 22
 
-      - name: Build & Test
+      - name: Enable Corepack
         working-directory: nodejs_space
-        run: |
-          corepack enable
-          yarn install --immutable
-          yarn lint
-          yarn test
-          yarn build
+        run: corepack enable
+
+      - name: Install Dependencies
+        working-directory: nodejs_space
+        run: yarn install --immutable
+
+      - name: Generate Prisma Client
+        working-directory: nodejs_space
+        run: npx prisma generate
+
+      - name: Lint
+        working-directory: nodejs_space
+        run: yarn lint
+
+      - name: Test
+        working-directory: nodejs_space
+        run: yarn test
+
+      - name: Build
+        working-directory: nodejs_space
+        run: yarn build
 
   deploy:
     needs: build
