@@ -11,6 +11,10 @@ import { HealthController } from './health/health.controller.js';
 import { OratsModule } from './orats/orats.module.js';
 import { MarketDataModule } from './market-data/market-data.module.js';
 import { ResearchModule } from './research/research.module.js';
+import { StrategyModule } from './strategy/strategy.module.js';
+import { TradeModule } from './trade/trade.module.js';
+import { PositionModule } from './position/position.module.js';
+import { RiskModule } from './risk/risk.module.js';
 
 @Module({
   imports: [
@@ -25,6 +29,10 @@ import { ResearchModule } from './research/research.module.js';
     SignalsModule,
     UniverseModule,
     ConfigSettingsModule,
+    StrategyModule,
+    TradeModule,
+    PositionModule,
+    RiskModule,
   ],
   controllers: [HealthController],
 })

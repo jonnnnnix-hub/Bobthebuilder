@@ -44,6 +44,7 @@ model signal {
 
   universe_rel universe? @relation(fields: [symbol], references: [symbol])
   analysis_run analysis_run? @relation(fields: [run_id], references: [run_id])
+  trades       trade[]
 
   @@unique([symbol, date, run_id])
   @@index([date])
@@ -116,4 +117,87 @@ model ingestion_run {
   @@index([provider, dataset, target_date])
   @@index([started_at])
   @@index([status])
+}
+
+model trade {
+  id           Int       @id @default(autoincrement())
+  signal_id    Int?
+  symbol       String    @db.VarChar(20)
+  strategy     String    @db.VarChar(30)
+  status       String    @default("pending") @db.VarChar(20)
+  direction    String    @default("sell") @db.VarChar(10)
+  opened_at    DateTime?
+  closed_at    DateTime?
+  entry_credit Float?
+  exit_debit   Float?
+  pnl          Float?
+  pnl_pct      Float?
+  contracts    Int       @default(1)
+  notes        String?   @db.Text
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  signal_rel   signal?   @relation(fields: [signal_id], references: [id])
+  legs         trade_leg[]
+  snapshots    position_snapshot[]
+  risk_checks  risk_check[]
+
+  @@index([symbol])
+  @@index([status])
+  @@index([signal_id])
+}
+
+model trade_leg {
+  id           Int      @id @default(autoincrement())
+  trade_id     Int
+  option_type  String   @db.VarChar(10)
+  strike       Float
+  expiration   DateTime @db.Date
+  side         String   @db.VarChar(10)
+  quantity     Int
+  entry_price  Float?
+  exit_price   Float?
+  iv_at_entry  Float?
+  delta_at_entry Float?
+  created_at   DateTime @default(now())
+
+  trade_rel    trade    @relation(fields: [trade_id], references: [id])
+
+  @@index([trade_id])
+}
+
+model position_snapshot {
+  id               Int      @id @default(autoincrement())
+  trade_id         Int
+  snapshot_date    DateTime @db.Date
+  underlying_price Float
+  mark_value       Float
+  delta            Float?
+  theta            Float?
+  vega             Float?
+  gamma            Float?
+  days_to_expiry   Int
+  pnl_unrealized   Float?
+  created_at       DateTime @default(now())
+
+  trade_rel        trade    @relation(fields: [trade_id], references: [id])
+
+  @@index([trade_id])
+  @@index([snapshot_date])
+}
+
+model risk_check {
+  id         Int      @id @default(autoincrement())
+  trade_id   Int?
+  check_type String   @db.VarChar(50)
+  status     String   @db.VarChar(20)
+  value      Float?
+  threshold  Float?
+  message    String?  @db.VarChar(500)
+  created_at DateTime @default(now())
+
+  trade_rel  trade?   @relation(fields: [trade_id], references: [id])
+
+  @@index([trade_id])
+  @@index([check_type])
 }
