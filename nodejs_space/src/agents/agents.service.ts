@@ -120,41 +120,155 @@ export class AgentsService {
   }
 
   async getStats() {
-    const [totalDebates, byDecision, agentAccuracyRows] = await Promise.all([
-      this.prisma.agent_debate.count(),
-      this.prisma.consensus_result.groupBy({
-        by: ['final_decision'],
-        _count: true,
-      }),
-      this.prisma.agent_vote.groupBy({
-        by: ['agent_name', 'vote'],
-        _count: true,
-        where: { debate_id: { not: null }, round_number: 3 },
-      }),
-    ]);
+    const rollingWindow = 20;
 
-    const decisionBreakdown = byDecision.reduce<Record<string, number>>(
+    const [totalDebates, byDecision, agentVoteRows, recentConsensus, recentRound3Votes] =
+      await Promise.all([
+        this.prisma.agent_debate.count(),
+        this.prisma.consensus_result.groupBy({
+          by: ['final_decision'],
+          _count: true,
+        }),
+        this.prisma.agent_vote.groupBy({
+          by: ['agent_name', 'vote'],
+          _count: true,
+          where: { debate_id: { not: null }, round_number: 3 },
+        }),
+        this.prisma.consensus_result.findMany({
+          orderBy: { created_at: 'desc' },
+          take: rollingWindow,
+          select: {
+            debate_id: true,
+            symbol: true,
+            final_decision: true,
+            weighted_approval_pct: true,
+            confidence_adjusted_score: true,
+            risk_vetoed: true,
+            created_at: true,
+          },
+        }),
+        this.prisma.agent_vote.findMany({
+          where: {
+            debate_id: { not: null },
+            round_number: 3,
+          },
+          orderBy: { created_at: 'desc' },
+          take: rollingWindow * 10,
+          select: {
+            debate_id: true,
+            agent_name: true,
+            vote: true,
+            confidence_score: true,
+            created_at: true,
+          },
+        }),
+      ]);
+
+    const decisionBreakdown = byDecision.reduce<Record<string, number>>((acc, row) => {
+      acc[row.final_decision] = row._count;
+      return acc;
+    }, {});
+
+    const agentVoteBreakdown = agentVoteRows.reduce<Record<string, Record<string, number>>>(
       (acc, row) => {
-        acc[row.final_decision] = row._count;
+        if (!acc[row.agent_name]) {
+          acc[row.agent_name] = {};
+        }
+        acc[row.agent_name][row.vote] = row._count;
         return acc;
       },
       {},
     );
 
-    const agentVoteBreakdown = agentAccuracyRows.reduce<
-      Record<string, Record<string, number>>
-    >((acc, row) => {
-      if (!acc[row.agent_name]) {
-        acc[row.agent_name] = {};
+    const recentDebateIds = new Set(recentConsensus.map((row) => row.debate_id.toString()));
+    const finalDecisionByDebate = new Map(
+      recentConsensus.map((row) => [row.debate_id.toString(), row.final_decision]),
+    );
+
+    const rollingByAgent = new Map<
+      string,
+      {
+        total: number;
+        correct: number;
+        selectVotes: number;
+        sumConfidence: number;
       }
-      acc[row.agent_name][row.vote] = row._count;
-      return acc;
-    }, {});
+    >();
+
+    for (const vote of recentRound3Votes) {
+      const debateId = vote.debate_id?.toString();
+      if (!debateId || !recentDebateIds.has(debateId)) {
+        continue;
+      }
+
+      const finalDecision = finalDecisionByDebate.get(debateId);
+      if (!finalDecision) {
+        continue;
+      }
+
+      const expectedSelect = finalDecision === 'select';
+      const votedSelect = vote.vote === 'select';
+      const isCorrect = votedSelect === expectedSelect;
+
+      const bucket = rollingByAgent.get(vote.agent_name) ?? {
+        total: 0,
+        correct: 0,
+        selectVotes: 0,
+        sumConfidence: 0,
+      };
+      bucket.total += 1;
+      bucket.correct += isCorrect ? 1 : 0;
+      bucket.selectVotes += votedSelect ? 1 : 0;
+      bucket.sumConfidence += vote.confidence_score ? Number(vote.confidence_score) : 0;
+      rollingByAgent.set(vote.agent_name, bucket);
+    }
+
+    const perAgentRollingAccuracy = [...rollingByAgent.entries()]
+      .map(([agentName, stats]) => {
+        const accuracyPct = stats.total === 0 ? 0 : (stats.correct / stats.total) * 100;
+        const selectRatePct = stats.total === 0 ? 0 : (stats.selectVotes / stats.total) * 100;
+        const avgConfidence = stats.total === 0 ? 0 : stats.sumConfidence / stats.total;
+
+        return {
+          agent_name: agentName,
+          sample_size: stats.total,
+          correct_votes: stats.correct,
+          accuracy_pct: Number(accuracyPct.toFixed(2)),
+          select_rate_pct: Number(selectRatePct.toFixed(2)),
+          avg_confidence: Number(avgConfidence.toFixed(4)),
+        };
+      })
+      .sort((a, b) => b.accuracy_pct - a.accuracy_pct || b.sample_size - a.sample_size);
+
+    const recommendationQualityTrend = [...recentConsensus]
+      .reverse()
+      .map((row, index) => {
+        const weightedApproval = row.weighted_approval_pct
+          ? Number(row.weighted_approval_pct)
+          : 0;
+        const confidenceAdjusted = row.confidence_adjusted_score
+          ? Number(row.confidence_adjusted_score)
+          : 0;
+
+        return {
+          index: index + 1,
+          debate_id: row.debate_id.toString(),
+          symbol: row.symbol,
+          decision: row.final_decision,
+          weighted_approval_pct: Number(weightedApproval.toFixed(2)),
+          confidence_adjusted_score: Number(confidenceAdjusted.toFixed(2)),
+          risk_vetoed: row.risk_vetoed,
+          created_at: row.created_at,
+        };
+      });
 
     return {
       total_debates: totalDebates,
       decision_breakdown: decisionBreakdown,
       agent_vote_breakdown: agentVoteBreakdown,
+      rolling_window: rollingWindow,
+      per_agent_rolling_accuracy: perAgentRollingAccuracy,
+      recommendation_quality_trend: recommendationQualityTrend,
     };
   }
 }

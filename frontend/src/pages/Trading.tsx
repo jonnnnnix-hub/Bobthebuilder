@@ -21,6 +21,7 @@ import type {
   TradingRisk,
   AgentDebateSummary,
   AgentDebateDetail,
+  AgentDebateStats,
 } from '../lib/types'
 import { dateTime, pct, returnColor } from '../lib/format'
 import DebateTranscript from '../components/DebateTranscript'
@@ -43,11 +44,12 @@ export default function Trading() {
   const [logs, setLogs] = useState<TradingLog[]>([])
   const [debates, setDebates] = useState<AgentDebateSummary[]>([])
   const [selectedDebate, setSelectedDebate] = useState<AgentDebateDetail | null>(null)
+  const [agentStats, setAgentStats] = useState<AgentDebateStats | null>(null)
   const [exitingId, setExitingId] = useState<string | null>(null)
 
   async function load() {
     try {
-      const [portfolioData, positionsData, historyData, riskData, logsData, debatesData] =
+      const [portfolioData, positionsData, historyData, riskData, logsData, debatesData, agentStatsData] =
         await Promise.all([
           api.trading.portfolio(),
           api.trading.positions(),
@@ -55,6 +57,7 @@ export default function Trading() {
           api.trading.risk(),
           api.trading.logs(200),
           api.agents.debates(25),
+          api.agents.stats(),
         ])
 
       setPortfolio(portfolioData)
@@ -63,6 +66,7 @@ export default function Trading() {
       setRisk(riskData)
       setLogs(logsData)
       setDebates(debatesData)
+      setAgentStats(agentStatsData)
 
       if (debatesData.length > 0) {
         const selectedId = selectedDebate?.id ?? debatesData[0].id
@@ -333,6 +337,54 @@ export default function Trading() {
                 </button>
               ))}
             </div>
+
+            {agentStats && (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="rounded border border-terminal-border p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold text-terminal-muted">Per-Agent Rolling Accuracy</p>
+                    <p className="text-[11px] text-terminal-muted">Window: {agentStats.rolling_window} debates</p>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-terminal-border text-terminal-muted">
+                        <tr>
+                          <th className="px-1 py-1 text-left">Agent</th>
+                          <th className="px-1 py-1 text-right">Accuracy</th>
+                          <th className="px-1 py-1 text-right">Sample</th>
+                          <th className="px-1 py-1 text-right">Select %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agentStats.per_agent_rolling_accuracy.map((row) => (
+                          <tr key={row.agent_name} className="border-b border-terminal-border/30">
+                            <td className="px-1 py-1">{row.agent_name}</td>
+                            <td className="px-1 py-1 text-right font-mono">{pct(row.accuracy_pct, 1)}</td>
+                            <td className="px-1 py-1 text-right font-mono">{row.sample_size}</td>
+                            <td className="px-1 py-1 text-right font-mono">{pct(row.select_rate_pct, 1)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="rounded border border-terminal-border p-3">
+                  <p className="mb-2 text-xs font-semibold text-terminal-muted">Recommendation Quality Trendline</p>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={agentStats.recommendation_quality_trend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
+                        <XAxis dataKey="index" stroke="#64748b" />
+                        <YAxis stroke="#64748b" />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="weighted_approval_pct" stroke="#22c55e" dot={false} name="Approval %" />
+                        <Line type="monotone" dataKey="confidence_adjusted_score" stroke="#3b82f6" dot={false} name="Confidence Adj Score" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {selectedDebate ? (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">

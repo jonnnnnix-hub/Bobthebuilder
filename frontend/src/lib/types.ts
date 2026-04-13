@@ -313,4 +313,24 @@ export interface AgentDebateStats {
   total_debates: number
   decision_breakdown: Record<string, number>
   agent_vote_breakdown: Record<string, Record<string, number>>
+  rolling_window: number
+  per_agent_rolling_accuracy: Array<{
+    agent_name: string
+    sample_size: number
+    correct_votes: number
+    accuracy_pct: number
+    select_rate_pct: number
+    avg_confidence: number
+  }>
+  recommendation_quality_trend: Array<{
+    index: number
+    debate_id: string
+    symbol: string
+    decision: string
+    weighted_approval_pct: number
+    confidence_adjusted_score: number
+    risk_vetoed: boolean
+    created_at: string
+  }>
 }
+
