@@ -1,0 +1,119 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model universe {
+  id        Int      @id @default(autoincrement())
+  symbol    String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(200)
+  sector    String?  @db.VarChar(100)
+  active    Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  signals   signal[]
+  market_bars market_bar[]
+
+  @@index([active])
+}
+
+model signal {
+  id         Int      @id @default(autoincrement())
+  symbol     String   @db.VarChar(20)
+  date       DateTime @db.Date
+  atm_iv     Float?
+  hv_10      Float?
+  hv_20      Float?
+  hv_60      Float?
+  vrp_20     Float?
+  vrp_percentile Float?
+  iv_z       Float?
+  iv_z_percentile Float?
+  iv_history_source String? @db.VarChar(30)
+  rank       Int?
+  selected   Boolean  @default(false)
+  selection_reason String? @db.VarChar(100)
+  run_id     String   @db.VarChar(50)
+  created_at DateTime @default(now())
+
+  universe_rel universe? @relation(fields: [symbol], references: [symbol])
+  analysis_run analysis_run? @relation(fields: [run_id], references: [run_id])
+
+  @@unique([symbol, date, run_id])
+  @@index([date])
+  @@index([selected])
+  @@index([run_id])
+}
+
+model analysis_run {
+  id                 Int      @id @default(autoincrement())
+  run_id             String   @unique @db.VarChar(50)
+  started_at         DateTime @default(now())
+  completed_at       DateTime?
+  symbols_analyzed   Int      @default(0)
+  signals_generated  Int      @default(0)
+  status             String   @default("running") @db.VarChar(20)
+  errors             String?  @db.Text
+  duration_ms        Int?
+  trigger            String   @default("manual") @db.VarChar(20)
+
+  signals            signal[]
+
+  @@index([started_at])
+  @@index([status])
+}
+
+model configuration {
+  id         Int      @id @default(autoincrement())
+  key        String   @unique @db.VarChar(100)
+  value      String   @db.Text
+  description String? @db.VarChar(500)
+  updated_at DateTime @updatedAt
+}
+
+model market_bar {
+  id            Int      @id @default(autoincrement())
+  symbol        String   @db.VarChar(20)
+  date          DateTime @db.Date
+  open          Float
+  high          Float
+  low           Float
+  close         Float
+  volume        BigInt
+  transactions  BigInt?
+  source        String   @default("polygon_flat_file") @db.VarChar(50)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  universe_rel  universe? @relation(fields: [symbol], references: [symbol])
+
+  @@unique([symbol, date])
+  @@index([date])
+  @@index([symbol, date])
+}
+
+model ingestion_run {
+  id               Int      @id @default(autoincrement())
+  provider         String   @db.VarChar(50)
+  dataset          String   @db.VarChar(100)
+  target_date      DateTime @db.Date
+  trigger          String   @default("manual") @db.VarChar(20)
+  status           String   @default("running") @db.VarChar(20)
+  rows_considered  Int      @default(0)
+  rows_ingested    Int      @default(0)
+  rows_skipped     Int      @default(0)
+  duration_ms      Int?
+  errors           String?  @db.Text
+  started_at       DateTime @default(now())
+  completed_at     DateTime?
+
+  @@index([provider, dataset, target_date])
+  @@index([started_at])
+  @@index([status])
+}
