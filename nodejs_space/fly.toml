@@ -10,11 +10,12 @@ primary_region = "lax"
   size = "shared-cpu-1x"
   memory = "512mb"
 
-[checks.health]
-  port = 3000
-  path = "/api/health"
+[[http_service.checks]]
+  grace_period = "10s"
   interval = "30s"
+  method = "GET"
   timeout = "5s"
+  path = "/api/health"
 
 [env]
   NODE_ENV = "production"
