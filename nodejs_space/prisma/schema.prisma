@@ -24,34 +24,44 @@ model universe {
 }
 
 model signal {
-  id         Int      @id @default(autoincrement())
-  symbol     String   @db.VarChar(20)
-  date       DateTime @db.Date
-  atm_iv     Float?
-  hv_10      Float?
-  hv_20      Float?
-  hv_60      Float?
-  vrp_20     Float?
-  vrp_percentile Float?
-  iv_z       Float?
-  iv_z_percentile Float?
-  iv_history_source String? @db.VarChar(30)
-  rank       Int?
-  selected   Boolean  @default(false)
-  selection_reason String? @db.VarChar(100)
-  run_id     String   @db.VarChar(50)
-  created_at DateTime @default(now())
+  id                       Int      @id @default(autoincrement())
+  symbol                   String   @db.VarChar(20)
+  date                     DateTime @db.Date
+  atm_iv                   Float?
+  hv_10                    Float?
+  hv_20                    Float?
+  hv_60                    Float?
+  vrp_20                   Float?
+  vrp_percentile           Float?
+  iv_z                     Float?
+  iv_z_percentile          Float?
+  iv_history_source        String?  @db.VarChar(30)
+  rank                     Int?
+  selected                 Boolean  @default(false)
+  selection_reason         String?  @db.VarChar(100)
+  composite_score          Float?
+  composite_score_normalized Float?
+  score_confidence         Float?
+  confidence_low           Float?
+  confidence_high          Float?
+  score_version            String   @default("v2") @db.VarChar(20)
+  category_scores          Json?
+  run_id                   String   @db.VarChar(50)
+  created_at               DateTime @default(now())
 
-  universe_rel universe? @relation(fields: [symbol], references: [symbol])
-  analysis_run analysis_run? @relation(fields: [run_id], references: [run_id])
-  trades       trade[]
-  backtest_results backtest_result[]
-  agent_votes  agent_vote[]
+  universe_rel             universe? @relation(fields: [symbol], references: [symbol])
+  analysis_run             analysis_run? @relation(fields: [run_id], references: [run_id])
+  trades                   trade[]
+  backtest_results         backtest_result[]
+  agent_votes              agent_vote[]
+  score_breakdowns         score_breakdown[]
+  score_histories          score_history[]
 
   @@unique([symbol, date, run_id])
   @@index([date])
   @@index([selected])
   @@index([run_id])
+  @@index([composite_score_normalized])
 }
 
 model analysis_run {
@@ -155,6 +165,47 @@ model option_chain_snapshot {
   @@index([underlying_symbol, snapshot_date])
   @@index([underlying_symbol, expiration, strike, option_type])
   @@index([quality_status, snapshot_date])
+}
+
+model score_breakdown {
+  id              BigInt   @id @default(autoincrement())
+  signal_id       Int
+  category        String   @db.VarChar(40)
+  sub_score_name  String   @db.VarChar(80)
+  raw_value       Decimal? @db.Decimal(14, 6)
+  scaled_score    Decimal? @db.Decimal(14, 6)
+  max_possible    Decimal  @db.Decimal(14, 6)
+  data_source     String?  @db.VarChar(60)
+  is_null         Boolean  @default(false)
+  metadata        Json?
+  created_at      DateTime @default(now())
+
+  signal_rel      signal   @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@index([signal_id])
+  @@index([category])
+}
+
+model score_history {
+  id               BigInt   @id @default(autoincrement())
+  signal_id        Int
+  symbol           String   @db.VarChar(20)
+  score_date       DateTime @db.Date
+  run_id           String   @db.VarChar(50)
+  composite_score  Decimal? @db.Decimal(14, 6)
+  normalized_score Decimal? @db.Decimal(14, 6)
+  confidence_score Decimal? @db.Decimal(14, 6)
+  confidence_low   Decimal? @db.Decimal(14, 6)
+  confidence_high  Decimal? @db.Decimal(14, 6)
+  category_scores  Json?
+  score_version    String   @default("v2") @db.VarChar(20)
+  created_at       DateTime @default(now())
+
+  signal_rel       signal   @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@unique([signal_id])
+  @@index([symbol, score_date])
+  @@index([run_id])
 }
 
 model backtest_result {
@@ -367,4 +418,3 @@ model risk_check {
   @@index([trade_id])
   @@index([check_type])
 }
-

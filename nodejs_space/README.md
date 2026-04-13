@@ -35,6 +35,29 @@ Completed in this milestone:
 - Added `backfill:options` script for historical options chain backfills.
 - Expanded automated tests with new unit + e2e coverage for options data foundation modules.
 
+## Phase 1 progress (Scoring Engine v2)
+
+Completed in this milestone:
+
+- Added a new scoring module at `src/scoring/` with centralized formulas in `scoring_formulas.ts`.
+- Implemented 7 category scorers with a composite 200-point framework:
+  - VRP (30)
+  - IV-Z (30)
+  - Term Structure (30)
+  - Skew (25)
+  - Momentum (25)
+  - Flow (25)
+  - Regime & Risk (35)
+- Added weighted composite normalization (`0-100`) with confidence intervals.
+- Updated `AnalysisService` to rank/select by composite score threshold + top-N.
+- Added persistence for score transparency and history:
+  - `score_breakdown` table (sub-score level audit trail)
+  - `score_history` table (per-signal history snapshots)
+  - New `signal` composite fields (`composite_score*`, confidence bounds, category JSON).
+- Added tests for category scorers, scoring service aggregation/ranking, and analysis integration.
+
+See `docs/scoring-engine-v2.md` for the scoring reference guide and formulas.
+
 ## Required environment variables
 
 Create `.env` with:

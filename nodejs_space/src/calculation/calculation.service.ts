@@ -19,6 +19,7 @@ export type SelectionReason =
   | 'below_vrp_threshold'
   | 'below_iv_z_threshold'
   | 'below_vrp_and_iv_z_threshold'
+  | 'below_composite_threshold'
   | 'passed_thresholds_but_outside_top_n';
 
 export interface RankedFeature extends FeatureSet {
@@ -44,7 +45,7 @@ export class CalculationService {
     const now = new Date();
     // Filter to options with valid IV and 15-50 DTE range.
     // We only use matched call/put pairs at the same strike and expiration.
-    const validOptions = options.filter(opt => {
+    const validOptions = options.filter((opt) => {
       if (!opt.implied_volatility || opt.implied_volatility <= 0) return false;
       const expDate = new Date(opt.expiration_date);
       const dte = (expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
@@ -53,7 +54,10 @@ export class CalculationService {
 
     if (!validOptions.length) return null;
 
-    const grouped = new Map<string, { call?: OptionContract; put?: OptionContract }>();
+    const grouped = new Map<
+      string,
+      { call?: OptionContract; put?: OptionContract }
+    >();
     for (const option of validOptions) {
       const key = `${option.expiration_date}:${option.strike_price}`;
       const existing = grouped.get(key) ?? {};
@@ -62,16 +66,20 @@ export class CalculationService {
     }
 
     const pairCandidates = [...grouped.values()]
-      .filter((entry): entry is { call: OptionContract; put: OptionContract } => Boolean(entry.call && entry.put))
-      .map(entry => {
+      .filter((entry): entry is { call: OptionContract; put: OptionContract } =>
+        Boolean(entry.call && entry.put),
+      )
+      .map((entry) => {
         const expiration = new Date(entry.call.expiration_date);
-        const dte = (expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        const dte =
+          (expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
         return {
           call: entry.call,
           put: entry.put,
           dte,
           distance: Math.abs(entry.call.strike_price - currentPrice),
-          combinedOpenInterest: (entry.call.open_interest ?? 0) + (entry.put.open_interest ?? 0),
+          combinedOpenInterest:
+            (entry.call.open_interest ?? 0) + (entry.put.open_interest ?? 0),
         };
       })
       .sort((left, right) => {
@@ -87,7 +95,10 @@ export class CalculationService {
     const bestPair = pairCandidates[0];
     if (!bestPair) return null;
 
-    const atmIv = ((bestPair.call.implied_volatility as number) + (bestPair.put.implied_volatility as number)) / 2;
+    const atmIv =
+      ((bestPair.call.implied_volatility as number) +
+        (bestPair.put.implied_volatility as number)) /
+      2;
     return Math.round(atmIv * 10000) / 10000; // 4 decimal places
   }
 
@@ -95,7 +106,10 @@ export class CalculationService {
    * Calculate historical (realized) volatility from daily close prices.
    * Uses log returns and annualizes.
    */
-  calculateHistoricalVolatility(bars: DailyBar[], period: number): number | null {
+  calculateHistoricalVolatility(
+    bars: DailyBar[],
+    period: number,
+  ): number | null {
     if (bars.length < period + 1) return null;
 
     // Use the most recent 'period + 1' bars to get 'period' returns
@@ -113,22 +127,30 @@ export class CalculationService {
     if (logReturns.length < period * 0.8) return null; // Need at least 80% of data
 
     const mean = logReturns.reduce((sum, r) => sum + r, 0) / logReturns.length;
-    const variance = logReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (logReturns.length - 1);
+    const variance =
+      logReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) /
+      (logReturns.length - 1);
     const dailyVol = Math.sqrt(variance);
     const annualizedVol = dailyVol * Math.sqrt(252);
 
     return Math.round(annualizedVol * 10000) / 10000;
   }
 
-  calculateIvZScoreFromHistory(currentIv: number, historicalIvs: number[]): number | null {
+  calculateIvZScoreFromHistory(
+    currentIv: number,
+    historicalIvs: number[],
+  ): number | null {
     if (!currentIv) return null;
 
-    const observedIvs = historicalIvs.filter(iv => Number.isFinite(iv) && iv > 0);
+    const observedIvs = historicalIvs.filter(
+      (iv) => Number.isFinite(iv) && iv > 0,
+    );
     if (observedIvs.length < CalculationService.MIN_IV_HISTORY_OBSERVATIONS) {
       return null;
     }
 
-    const mean = observedIvs.reduce((sum, value) => sum + value, 0) / observedIvs.length;
+    const mean =
+      observedIvs.reduce((sum, value) => sum + value, 0) / observedIvs.length;
     const variance =
       observedIvs.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) /
       Math.max(observedIvs.length - 1, 1);
@@ -156,9 +178,15 @@ export class CalculationService {
     const hv_20 = this.calculateHistoricalVolatility(historicalBars, 20);
     const hv_60 = this.calculateHistoricalVolatility(historicalBars, 60);
 
-    const vrp_20 = (atm_iv !== null && hv_20 !== null) ? Math.round((atm_iv - hv_20) * 10000) / 10000 : null;
+    const vrp_20 =
+      atm_iv !== null && hv_20 !== null
+        ? Math.round((atm_iv - hv_20) * 10000) / 10000
+        : null;
     const ivZBasis = currentIvForZScore ?? atm_iv;
-    const iv_z = ivZBasis !== null && ivZBasis !== undefined ? this.calculateIvZScoreFromHistory(ivZBasis, historicalIvs) : null;
+    const iv_z =
+      ivZBasis !== null && ivZBasis !== undefined
+        ? this.calculateIvZScoreFromHistory(ivZBasis, historicalIvs)
+        : null;
 
     return { symbol, atm_iv, hv_10, hv_20, hv_60, vrp_20, iv_z };
   }
@@ -168,7 +196,7 @@ export class CalculationService {
    */
   percentile(value: number, values: number[]): number {
     const sorted = [...values].sort((a, b) => a - b);
-    const rank = sorted.filter(v => v < value).length;
+    const rank = sorted.filter((v) => v < value).length;
     return (rank / sorted.length) * 100;
   }
 
@@ -183,18 +211,18 @@ export class CalculationService {
     topN: number = 5,
   ): { ranked: RankedFeature[] } {
     // Filter to features with valid data
-    const valid = features.filter(f => f.vrp_20 !== null && f.iv_z !== null);
+    const valid = features.filter((f) => f.vrp_20 !== null && f.iv_z !== null);
 
     if (!valid.length) {
       return { ranked: [] };
     }
 
-    const vrpValues = valid.map(f => f.vrp_20 as number);
-    const ivZValues = valid.map(f => f.iv_z as number);
+    const vrpValues = valid.map((f) => f.vrp_20 as number);
+    const ivZValues = valid.map((f) => f.iv_z as number);
 
     // Compute percentiles and sort by VRP descending
     const ranked = valid
-      .map(f => {
+      .map((f) => {
         const vrpPct = this.percentile(f.vrp_20 as number, vrpValues);
         const ivZPct = this.percentile(f.iv_z as number, ivZValues);
         return {
@@ -215,7 +243,9 @@ export class CalculationService {
 
     // Select candidates meeting both thresholds
     const candidates = ranked.filter(
-      f => f.vrp_percentile >= vrpThresholdPct && f.iv_z_percentile >= ivZThresholdPct
+      (f) =>
+        f.vrp_percentile >= vrpThresholdPct &&
+        f.iv_z_percentile >= ivZThresholdPct,
     );
 
     // Mark top N as selected
@@ -232,7 +262,10 @@ export class CalculationService {
         ? 'selected'
         : passesVrpThreshold && passesIvZThreshold
           ? 'passed_thresholds_but_outside_top_n'
-          : this.getThresholdFailureReason(passesVrpThreshold, passesIvZThreshold);
+          : this.getThresholdFailureReason(
+              passesVrpThreshold,
+              passesIvZThreshold,
+            );
     }
 
     return { ranked };
