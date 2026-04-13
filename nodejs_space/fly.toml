@@ -1,0 +1,22 @@
+app = "bob-signals"
+primary_region = "lax"
+
+[http_service]
+  internal_port = 3000
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[checks.health]
+  port = 3000
+  path = "/api/health"
+  interval = "30s"
+  timeout = "5s"
+
+[env]
+  NODE_ENV = "production"
+  HOST = "0.0.0.0"
+  PORT = "3000"

@@ -1,0 +1,21 @@
+name: Weekly Backfill
+
+on:
+  schedule:
+    # Saturday 7:00 AM PT (14:00 UTC)
+    - cron: "0 14 * * 6"
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Backfill past week
+        run: |
+          FROM=$(date -u -d '7 days ago' +%Y-%m-%d)
+          TO=$(date -u -d '1 day ago' +%Y-%m-%d)
+          for i in 1 2 3; do
+            curl -sf -X POST "https://bob-signals.fly.dev/api/market/backfill?from=${FROM}&to=${TO}" \
+              -H "x-api-key: ${{ secrets.CRON_API_KEY }}" && break
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
