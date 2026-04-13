@@ -58,6 +58,51 @@ Completed in this milestone:
 
 See `docs/scoring-engine-v2.md` for the scoring reference guide and formulas.
 
+## Phase 1.5 progress (Autonomous Trading Engine)
+
+Implemented in this milestone:
+
+- Added secure Alpaca integration (`src/alpaca/`) for paper trading account, positions, orders, options snapshots, and order placement.
+- Added model-driven autonomous trading module (`src/trading/`) with:
+  - strategy selector (long/short call/put, straddle, strangle)
+  - strike selector (delta + liquidity aware)
+  - expiration selector (term-structure + liquidity aware)
+  - score-weighted position sizing
+  - autonomous risk evaluator with dynamic limits and persisted `risk_metrics`
+  - scheduled real-time execution worker (15s loop)
+  - automated exit management (score decay, stop loss, profit target, theta decay)
+- Added new Prisma models + migration for autonomous runtime state:
+  - `alpaca_account`
+  - `trade_decision`
+  - `alpaca_order`
+  - `position_monitoring`
+  - `exit_signal`
+  - `risk_metrics`
+  - `trading_log`
+- Added Trading API surface:
+  - `GET /api/trading/positions`
+  - `GET /api/trading/history`
+  - `GET /api/trading/portfolio`
+  - `GET /api/trading/risk`
+  - `POST /api/trading/manual-exit/:positionId`
+  - `GET /api/trading/logs`
+
+### Autonomous decision examples
+
+1. **High-score rich-vol setup**: signal score 84 / confidence 0.80 / IV-Z 2.1 / VRP 0.18
+   - Strategy selector prefers `short_put`
+   - Expiration selector targets ~21–30 DTE with strongest OI+volume
+   - Strike selector targets ~0.20 delta with low spread
+   - Position sizer allocates larger notional due to high score+confidence
+
+2. **Low-liquidity setup**: if spread-driven liquidity score < 0.35
+   - Risk module blocks trade regardless of strategy score
+   - Decision persisted as blocked with rationale in `trade_decision`
+
+3. **Exit trigger**: if unrealized P&L % <= -25% or DTE <= 3 or score drops below continuation threshold
+   - `exit_signal` generated
+   - Autonomous engine submits close request to Alpaca paper account
+
 ## Required environment variables
 
 Create `.env` with:
@@ -73,6 +118,9 @@ POLYGON_FLAT_FILES_SECRET=your-flat-files-secret
 POLYGON_FLAT_FILES_ENDPOINT=https://files.massive.com
 CRON_API_KEY=your-cron-secret
 PORT=3000
+ALPACA_API_KEY=your-alpaca-paper-api-key
+ALPACA_API_SECRET=your-alpaca-paper-secret
+ALPACA_PAPER_BASE_URL=https://paper-api.alpaca.markets
 HOST=127.0.0.1
 ```
 

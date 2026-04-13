@@ -6,16 +6,25 @@ import type {
   AnalysisStats,
   UniverseResponse,
   BacktestResponse,
+  TradingPosition,
+  TradingHistoryItem,
+  TradingPortfolio,
+  TradingRisk,
+  TradingLog,
 } from './types'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`)
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, init)
   if (!res.ok) {
     throw new Error(`API ${res.status}: ${res.statusText}`)
   }
   return res.json() as Promise<T>
+}
+
+async function fetchJson<T>(path: string): Promise<T> {
+  return requestJson<T>(path)
 }
 
 export const api = {
@@ -81,6 +90,21 @@ export const api = {
     return fetchJson<BacktestResponse>(
       `/api/research/backtest${qs ? `?${qs}` : ''}`,
     )
+  },
+
+  trading: {
+    positions: () => fetchJson<TradingPosition[]>('/api/trading/positions'),
+    history: (limit = 150) =>
+      fetchJson<TradingHistoryItem[]>(`/api/trading/history?limit=${limit}`),
+    portfolio: () => fetchJson<TradingPortfolio>('/api/trading/portfolio'),
+    risk: () => fetchJson<TradingRisk | null>('/api/trading/risk'),
+    logs: (limit = 200) =>
+      fetchJson<TradingLog[]>(`/api/trading/logs?limit=${limit}`),
+    manualExit: (positionId: string) =>
+      requestJson<{ ok: boolean; symbol: string }>(
+        `/api/trading/manual-exit/${positionId}`,
+        { method: 'POST' },
+      ),
   },
 
   config: () =>

@@ -56,6 +56,7 @@ model signal {
   agent_votes              agent_vote[]
   score_breakdowns         score_breakdown[]
   score_histories          score_history[]
+  trade_decisions          trade_decision[]
 
   @@unique([symbol, date, run_id])
   @@index([date])
@@ -417,4 +418,154 @@ model risk_check {
 
   @@index([trade_id])
   @@index([check_type])
+}
+
+model alpaca_account {
+  id            BigInt   @id @default(autoincrement())
+  account_id    String   @unique @db.VarChar(80)
+  status        String   @db.VarChar(30)
+  currency      String   @default("USD") @db.VarChar(10)
+  equity        Decimal? @db.Decimal(16, 4)
+  cash          Decimal? @db.Decimal(16, 4)
+  buying_power  Decimal? @db.Decimal(16, 4)
+  daytrade_count Int? 
+  raw_payload   Json?
+  synced_at     DateTime @default(now())
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([synced_at])
+}
+
+model trade_decision {
+  id                      BigInt   @id @default(autoincrement())
+  signal_id               Int?
+  symbol                  String   @db.VarChar(20)
+  composite_score         Decimal? @db.Decimal(14, 6)
+  score_confidence        Decimal? @db.Decimal(14, 6)
+  market_regime           String?  @db.VarChar(40)
+  volatility_environment  String?  @db.VarChar(40)
+  selected_strategy       String   @db.VarChar(40)
+  strategy_scoring        Json
+  strike_selection        Json
+  expiration_selection    Json
+  position_size_usd       Decimal  @db.Decimal(14, 4)
+  position_contracts      Int
+  risk_state              String   @default("approved") @db.VarChar(30)
+  rationale               Json?
+  created_at              DateTime @default(now())
+
+  signal_rel              signal? @relation(fields: [signal_id], references: [id])
+  alpaca_orders           alpaca_order[]
+
+  @@index([symbol, created_at])
+  @@index([risk_state])
+  @@index([signal_id])
+}
+
+model alpaca_order {
+  id                  BigInt   @id @default(autoincrement())
+  trade_decision_id   BigInt?
+  alpaca_order_id     String?  @unique @db.VarChar(120)
+  client_order_id     String?  @db.VarChar(120)
+  symbol              String   @db.VarChar(40)
+  side                String   @db.VarChar(10)
+  order_type          String   @db.VarChar(20)
+  quantity            Decimal? @db.Decimal(14, 4)
+  limit_price         Decimal? @db.Decimal(14, 4)
+  stop_price          Decimal? @db.Decimal(14, 4)
+  status              String   @db.VarChar(30)
+  filled_avg_price    Decimal? @db.Decimal(14, 4)
+  filled_quantity     Decimal? @db.Decimal(14, 4)
+  submitted_at        DateTime?
+  filled_at           DateTime?
+  request_payload     Json?
+  response_payload    Json?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  trade_decision_rel  trade_decision? @relation(fields: [trade_decision_id], references: [id])
+
+  @@index([symbol, created_at])
+  @@index([status])
+  @@index([trade_decision_id])
+}
+
+model position_monitoring {
+  id                     BigInt   @id @default(autoincrement())
+  alpaca_position_id     String?  @db.VarChar(120)
+  symbol                 String   @db.VarChar(20)
+  strategy               String?  @db.VarChar(40)
+  quantity               Decimal? @db.Decimal(14, 4)
+  avg_entry_price        Decimal? @db.Decimal(14, 4)
+  current_price          Decimal? @db.Decimal(14, 4)
+  market_value           Decimal? @db.Decimal(16, 4)
+  unrealized_pl          Decimal? @db.Decimal(16, 4)
+  unrealized_pl_pct      Decimal? @db.Decimal(12, 6)
+  realized_pl            Decimal? @db.Decimal(16, 4)
+  delta                  Decimal? @db.Decimal(14, 6)
+  gamma                  Decimal? @db.Decimal(14, 6)
+  theta                  Decimal? @db.Decimal(14, 6)
+  vega                   Decimal? @db.Decimal(14, 6)
+  dte_remaining          Int?
+  exit_criteria_status   Json?
+  last_synced_at         DateTime @default(now())
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  exit_signals           exit_signal[]
+
+  @@index([symbol, last_synced_at])
+  @@index([alpaca_position_id])
+}
+
+model exit_signal {
+  id                      BigInt   @id @default(autoincrement())
+  position_monitoring_id  BigInt
+  trigger_type            String   @db.VarChar(40)
+  trigger_value           Decimal? @db.Decimal(14, 6)
+  threshold_value         Decimal? @db.Decimal(14, 6)
+  action                  String   @default("exit") @db.VarChar(20)
+  rationale               String?  @db.Text
+  executed                Boolean  @default(false)
+  executed_at             DateTime?
+  created_at              DateTime @default(now())
+
+  position_monitoring_rel position_monitoring @relation(fields: [position_monitoring_id], references: [id], onDelete: Cascade)
+
+  @@index([position_monitoring_id, created_at])
+  @@index([executed])
+}
+
+model risk_metrics {
+  id                        BigInt   @id @default(autoincrement())
+  portfolio_value           Decimal? @db.Decimal(16, 4)
+  var_95                    Decimal? @db.Decimal(16, 4)
+  max_drawdown_pct          Decimal? @db.Decimal(12, 6)
+  portfolio_heat_pct        Decimal? @db.Decimal(12, 6)
+  max_symbol_concentration  Decimal? @db.Decimal(12, 6)
+  max_sector_concentration  Decimal? @db.Decimal(12, 6)
+  portfolio_delta           Decimal? @db.Decimal(14, 6)
+  portfolio_gamma           Decimal? @db.Decimal(14, 6)
+  portfolio_theta           Decimal? @db.Decimal(14, 6)
+  portfolio_vega            Decimal? @db.Decimal(14, 6)
+  liquidity_score           Decimal? @db.Decimal(12, 6)
+  market_regime             String?  @db.VarChar(40)
+  metrics_payload           Json?
+  created_at                DateTime @default(now())
+
+  @@index([created_at])
+}
+
+model trading_log {
+  id           BigInt   @id @default(autoincrement())
+  level        String   @db.VarChar(12)
+  event_type   String   @db.VarChar(40)
+  symbol       String?  @db.VarChar(20)
+  message      String   @db.Text
+  payload      Json?
+  created_at   DateTime @default(now())
+
+  @@index([created_at])
+  @@index([event_type])
 }

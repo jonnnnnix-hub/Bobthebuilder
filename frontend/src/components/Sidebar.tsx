@@ -6,6 +6,7 @@ const links = [
   { to: '/backtest', label: 'Backtest', icon: '⟳' },
   { to: '/universe', label: 'Universe', icon: '◉' },
   { to: '/runs', label: 'Runs', icon: '▶' },
+  { to: '/trading', label: 'Trading', icon: '⛃' },
 ]
 
 export default function Sidebar() {

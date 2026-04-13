@@ -5,6 +5,7 @@ import Signals from './pages/Signals'
 import Backtest from './pages/Backtest'
 import Universe from './pages/Universe'
 import Runs from './pages/Runs'
+import Trading from './pages/Trading'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/backtest" element={<Backtest />} />
         <Route path="/universe" element={<Universe />} />
         <Route path="/runs" element={<Runs />} />
+        <Route path="/trading" element={<Trading />} />
       </Route>
     </Routes>
   )

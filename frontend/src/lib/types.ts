@@ -151,3 +151,87 @@ export interface BacktestResponse {
   }
   trades: BacktestTrade[]
 }
+
+export interface TradingPosition {
+  id: string
+  symbol: string
+  strategy: string | null
+  quantity: number
+  avg_entry_price: number
+  current_price: number
+  market_value: number
+  unrealized_pl: number
+  unrealized_pl_pct: number
+  greeks: {
+    delta: number
+    gamma: number
+    theta: number
+    vega: number
+  }
+  dte_remaining: number | null
+  exit_criteria_status: Record<string, unknown> | null
+  updated_at: string
+}
+
+export interface TradingHistoryItem {
+  id: string
+  symbol: string
+  side: string
+  order_type: string
+  quantity: number
+  status: string
+  filled_avg_price: number
+  filled_quantity: number
+  submitted_at: string | null
+  filled_at: string | null
+}
+
+export interface TradingPortfolio {
+  account_balance: number
+  buying_power: number
+  total_pnl: number
+  daily_pnl: number
+  weekly_pnl: number
+  all_time_pnl: number
+  active_positions: number
+  win_rate: number
+  sharpe_ratio: number
+  greeks: {
+    delta: number
+    gamma: number
+    theta: number
+    vega: number
+  }
+  charts: {
+    equity_curve: Array<{ index: number; value: number }>
+    drawdown_curve: Array<{ index: number; value: number }>
+  }
+}
+
+export interface TradingRisk {
+  id: string
+  portfolio_value: number
+  var_95: number
+  max_drawdown_pct: number
+  portfolio_heat_pct: number
+  max_symbol_concentration: number
+  max_sector_concentration: number
+  portfolio_delta: number
+  portfolio_gamma: number
+  portfolio_theta: number
+  portfolio_vega: number
+  liquidity_score: number
+  market_regime: string | null
+  metrics_payload: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface TradingLog {
+  id: string
+  level: string
+  event_type: string
+  symbol: string | null
+  message: string
+  payload: Record<string, unknown> | null
+  created_at: string
+}

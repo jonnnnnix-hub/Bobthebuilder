@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { PolygonModule } from './polygon/polygon.module.js';
 import { CalculationModule } from './calculation/calculation.module.js';
@@ -17,10 +18,13 @@ import { PositionModule } from './position/position.module.js';
 import { RiskModule } from './risk/risk.module.js';
 import { OptionsDataModule } from './options-data/options-data.module.js';
 import { OptionsIngestionModule } from './options-ingestion/options-ingestion.module.js';
+import { AlpacaModule } from './alpaca/alpaca.module.js';
+import { TradingModule } from './trading/trading.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     PolygonModule,
     MarketDataModule,
@@ -37,6 +41,8 @@ import { OptionsIngestionModule } from './options-ingestion/options-ingestion.mo
     TradeModule,
     PositionModule,
     RiskModule,
+    AlpacaModule,
+    TradingModule,
   ],
   controllers: [HealthController],
 })
