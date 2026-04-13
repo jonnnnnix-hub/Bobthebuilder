@@ -235,3 +235,82 @@ export interface TradingLog {
   payload: Record<string, unknown> | null
   created_at: string
 }
+
+export interface AgentDebateSummary {
+  id: string
+  run_id: string
+  signal_id: number
+  symbol: string
+  status: string
+  consensus: string | null
+  consensus_strength: string | null
+  weighted_approval_pct: number | null
+  risk_vetoed: boolean
+  started_at: string
+  completed_at: string | null
+  created_at: string
+  final_decision: string | null
+  key_thesis: string | null
+  key_risk: string | null
+}
+
+export interface AgentOpinion {
+  id: string
+  round_number: number
+  agent_name: string
+  category_score: number | null
+  conviction: string
+  thesis: string
+  key_risk: string | null
+  vote: string
+  confidence_score: number | null
+  challenge_payload: unknown
+  response_payload: unknown
+  prompt_version: string | null
+}
+
+export interface AgentDebateDetail {
+  id: string
+  run_id: string
+  signal_id: number
+  symbol: string
+  status: string
+  consensus: string | null
+  consensus_strength: string | null
+  weighted_approval_pct: number | null
+  risk_vetoed: boolean
+  error_message: string | null
+  started_at: string
+  completed_at: string | null
+  created_at: string
+  opinions: AgentOpinion[]
+  transcripts: Array<{
+    round_number: number
+    transcript: unknown
+  }>
+  votes: Array<{
+    id: string
+    round_number: number
+    agent_name: string
+    vote: string
+    confidence_score: number | null
+  }>
+  consensus_result: {
+    id: string
+    final_decision: string
+    consensus_strength: string
+    weighted_approval_pct: number | null
+    confidence_adjusted_score: number | null
+    risk_vetoed: boolean
+    votes: Record<string, number>
+    key_thesis: string | null
+    key_risk: string | null
+    dissenting_views: unknown[] | null
+  } | null
+}
+
+export interface AgentDebateStats {
+  total_debates: number
+  decision_breakdown: Record<string, number>
+  agent_vote_breakdown: Record<string, Record<string, number>>
+}

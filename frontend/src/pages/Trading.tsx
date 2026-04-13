@@ -19,8 +19,13 @@ import type {
   TradingPortfolio,
   TradingPosition,
   TradingRisk,
+  AgentDebateSummary,
+  AgentDebateDetail,
 } from '../lib/types'
 import { dateTime, pct, returnColor } from '../lib/format'
+import DebateTranscript from '../components/DebateTranscript'
+import AgentVotes from '../components/AgentVotes'
+import ConsensusCard from '../components/ConsensusCard'
 
 function dollars(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return '—'
@@ -36,17 +41,20 @@ export default function Trading() {
   const [history, setHistory] = useState<TradingHistoryItem[]>([])
   const [risk, setRisk] = useState<TradingRisk | null>(null)
   const [logs, setLogs] = useState<TradingLog[]>([])
+  const [debates, setDebates] = useState<AgentDebateSummary[]>([])
+  const [selectedDebate, setSelectedDebate] = useState<AgentDebateDetail | null>(null)
   const [exitingId, setExitingId] = useState<string | null>(null)
 
   async function load() {
     try {
-      const [portfolioData, positionsData, historyData, riskData, logsData] =
+      const [portfolioData, positionsData, historyData, riskData, logsData, debatesData] =
         await Promise.all([
           api.trading.portfolio(),
           api.trading.positions(),
           api.trading.history(150),
           api.trading.risk(),
           api.trading.logs(200),
+          api.agents.debates(25),
         ])
 
       setPortfolio(portfolioData)
@@ -54,6 +62,16 @@ export default function Trading() {
       setHistory(historyData)
       setRisk(riskData)
       setLogs(logsData)
+      setDebates(debatesData)
+
+      if (debatesData.length > 0) {
+        const selectedId = selectedDebate?.id ?? debatesData[0].id
+        const detail = await api.agents.debate(selectedId)
+        setSelectedDebate(detail)
+      } else {
+        setSelectedDebate(null)
+      }
+
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -95,6 +113,15 @@ export default function Trading() {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setExitingId(null)
+    }
+  }
+
+  async function openDebate(debateId: string) {
+    try {
+      const detail = await api.agents.debate(debateId)
+      setSelectedDebate(detail)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -289,6 +316,40 @@ export default function Trading() {
           </div>
         </Card>
       </div>
+
+      <Card title="Agent Analysis">
+        {debates.length === 0 ? (
+          <p className="text-xs text-terminal-muted">No debates yet. Enable the Phase 2 feature flag to start collecting them.</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {debates.slice(0, 10).map((debate) => (
+                <button
+                  key={debate.id}
+                  onClick={() => openDebate(debate.id)}
+                  className={`rounded border px-2 py-1 font-mono ${selectedDebate?.id === debate.id ? 'border-accent text-accent' : 'border-terminal-border text-terminal-muted hover:text-terminal-text'}`}
+                >
+                  {debate.symbol} · {debate.final_decision ?? debate.consensus ?? debate.status}
+                </button>
+              ))}
+            </div>
+
+            {selectedDebate ? (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                <div className="space-y-3 xl:col-span-1">
+                  <ConsensusCard debate={selectedDebate} />
+                  <AgentVotes debate={selectedDebate} />
+                </div>
+                <div className="xl:col-span-2">
+                  <DebateTranscript debate={selectedDebate} />
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-terminal-muted">Select a debate session to inspect transcript and votes.</p>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

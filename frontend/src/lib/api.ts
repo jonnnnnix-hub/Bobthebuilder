@@ -11,6 +11,9 @@ import type {
   TradingPortfolio,
   TradingRisk,
   TradingLog,
+  AgentDebateSummary,
+  AgentDebateDetail,
+  AgentDebateStats,
 } from './types'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
@@ -111,4 +114,20 @@ export const api = {
     fetchJson<Record<string, { value: string; description: string }>>(
       '/api/config',
     ),
+
+  agents: {
+    debates: (limit = 25) =>
+      fetchJson<AgentDebateSummary[]>(`/api/agents/debates?limit=${limit}`),
+    debate: (id: string) => fetchJson<AgentDebateDetail>(`/api/agents/debates/${id}`),
+    stats: () => fetchJson<AgentDebateStats>('/api/agents/stats'),
+    initiateDebate: (signalId: number) =>
+      requestJson<{ debate_id: string; signal_id: number; symbol: string }>(
+        '/api/agents/debate',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signal_id: signalId }),
+        },
+      ),
+  },
 }

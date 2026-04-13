@@ -6,6 +6,7 @@ import { CalculationModule } from '../calculation/calculation.module.js';
 import { OratsModule } from '../orats/orats.module.js';
 import { MarketDataModule } from '../market-data/market-data.module.js';
 import { ScoringModule } from '../scoring/scoring.module.js';
+import { AgentsModule } from '../agents/agents.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ScoringModule } from '../scoring/scoring.module.js';
     CalculationModule,
     OratsModule,
     ScoringModule,
+    AgentsModule,
   ],
   providers: [AnalysisService],
   controllers: [AnalysisController],

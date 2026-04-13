@@ -20,6 +20,7 @@ import { OptionsDataModule } from './options-data/options-data.module.js';
 import { OptionsIngestionModule } from './options-ingestion/options-ingestion.module.js';
 import { AlpacaModule } from './alpaca/alpaca.module.js';
 import { TradingModule } from './trading/trading.module.js';
+import { AgentsModule } from './agents/agents.module.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { TradingModule } from './trading/trading.module.js';
     RiskModule,
     AlpacaModule,
     TradingModule,
+    AgentsModule,
   ],
   controllers: [HealthController],
 })

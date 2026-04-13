@@ -57,6 +57,9 @@ model signal {
   score_breakdowns         score_breakdown[]
   score_histories          score_history[]
   trade_decisions          trade_decision[]
+  agent_debates            agent_debate[]
+  agent_opinions           agent_opinion[]
+  consensus_results        consensus_result[]
 
   @@unique([symbol, date, run_id])
   @@index([date])
@@ -247,6 +250,7 @@ model agent_vote {
   id                 BigInt   @id @default(autoincrement())
   run_id             String   @db.VarChar(80)
   signal_id          Int?
+  debate_id          BigInt?
   model_iteration_id BigInt?
   agent_name         String   @db.VarChar(80)
   agent_role         String?  @db.VarChar(80)
@@ -260,14 +264,106 @@ model agent_vote {
   created_at         DateTime @default(now())
 
   signal_rel         signal?  @relation(fields: [signal_id], references: [id])
+  debate_rel         agent_debate? @relation(fields: [debate_id], references: [id])
   model_iteration_rel model_iteration? @relation(fields: [model_iteration_id], references: [id])
 
   @@index([run_id, round_number])
   @@index([agent_name])
   @@index([signal_id])
+  @@index([debate_id])
   @@index([model_iteration_id])
 }
 
+model agent_debate {
+  id                     BigInt   @id @default(autoincrement())
+  run_id                 String   @db.VarChar(80)
+  signal_id              Int
+  symbol                 String   @db.VarChar(20)
+  status                 String   @default("running") @db.VarChar(30)
+  consensus              String?  @db.VarChar(30)
+  consensus_strength     String?  @db.VarChar(30)
+  weighted_approval_pct  Decimal? @db.Decimal(8, 4)
+  risk_vetoed            Boolean  @default(false)
+  error_message          String?  @db.Text
+  started_at             DateTime @default(now())
+  completed_at           DateTime?
+  created_at             DateTime @default(now())
+
+  signal_rel             signal   @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+  opinions               agent_opinion[]
+  transcripts            debate_transcript[]
+  votes                  agent_vote[]
+  consensus_result       consensus_result?
+
+  @@index([signal_id])
+  @@index([run_id])
+  @@index([status, created_at])
+  @@index([symbol, created_at])
+}
+
+model agent_opinion {
+  id                BigInt   @id @default(autoincrement())
+  debate_id         BigInt
+  signal_id         Int
+  run_id            String   @db.VarChar(80)
+  agent_name        String   @db.VarChar(80)
+  round_number      Int
+  category_score    Decimal? @db.Decimal(10, 4)
+  conviction        String   @db.VarChar(20)
+  thesis            String   @db.Text
+  key_risk          String?  @db.Text
+  vote              String   @db.VarChar(20)
+  confidence_score  Decimal? @db.Decimal(6, 4)
+  challenge_payload Json?
+  response_payload  Json?
+  prompt_version    String?  @db.VarChar(20)
+  metadata          Json?
+  created_at        DateTime @default(now())
+
+  debate_rel        agent_debate @relation(fields: [debate_id], references: [id], onDelete: Cascade)
+  signal_rel        signal       @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@index([debate_id, round_number])
+  @@index([signal_id])
+  @@index([agent_name])
+}
+
+model debate_transcript {
+  id           BigInt   @id @default(autoincrement())
+  debate_id    BigInt
+  round_number Int
+  transcript   Json
+  created_at   DateTime @default(now())
+
+  debate_rel   agent_debate @relation(fields: [debate_id], references: [id], onDelete: Cascade)
+
+  @@unique([debate_id, round_number])
+  @@index([debate_id])
+}
+
+model consensus_result {
+  id                         BigInt   @id @default(autoincrement())
+  debate_id                  BigInt   @unique
+  signal_id                  Int
+  symbol                     String   @db.VarChar(20)
+  final_decision             String   @db.VarChar(30)
+  consensus_strength         String   @db.VarChar(30)
+  weighted_approval_pct      Decimal? @db.Decimal(8, 4)
+  confidence_adjusted_score  Decimal? @db.Decimal(14, 6)
+  risk_vetoed                Boolean  @default(false)
+  votes                      Json
+  key_thesis                 String?  @db.Text
+  key_risk                   String?  @db.Text
+  dissenting_views           Json?
+  created_at                 DateTime @default(now())
+
+  debate_rel                 agent_debate @relation(fields: [debate_id], references: [id], onDelete: Cascade)
+  signal_rel                 signal       @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@index([signal_id])
+  @@index([symbol, created_at])
+  @@index([final_decision])
+}
 model loss_autopsy {
   id                    BigInt   @id @default(autoincrement())
   backtest_result_id    BigInt?

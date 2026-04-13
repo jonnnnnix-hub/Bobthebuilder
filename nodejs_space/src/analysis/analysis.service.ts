@@ -17,6 +17,7 @@ import {
   SymbolScoringInput,
 } from '../scoring/interfaces.js';
 import { ScoringService } from '../scoring/scoring.service.js';
+import { DebateOrchestratorService } from '../agents/debate-orchestrator.service.js';
 
 type AnalysisStage =
   | 'config'
@@ -89,6 +90,7 @@ export class AnalysisService {
     private calculation: CalculationService,
     private marketData: MarketDataService,
     private scoring: ScoringService,
+    private debateOrchestrator: DebateOrchestratorService,
   ) {}
 
   async runAnalysis(trigger: string = 'manual'): Promise<{
@@ -224,6 +226,10 @@ export class AnalysisService {
           );
           await this.persistSignalBatch(batch, today, runId);
         }
+      }
+
+      if (config.enableAgentDebate) {
+        await this.runAgentDebatesForRun(runId, config.maxAgentDebatesPerRun);
       }
 
       return await this.finalizeSuccessfulRun(
@@ -368,6 +374,8 @@ export class AnalysisService {
   private async getConfig(): Promise<{
     topN: number;
     compositeThresholdPct: number;
+    enableAgentDebate: boolean;
+    maxAgentDebatesPerRun: number;
   }> {
     const configs = await this.prisma.configuration.findMany();
     const configMap = new Map<string, string>(
@@ -390,7 +398,25 @@ export class AnalysisService {
       100,
     );
 
-    return { topN, compositeThresholdPct };
+    const envDebateFlag = process.env.AGENT_DEBATE_ENABLED;
+    const configDebateFlag = configMap.get('agent_debate_enabled');
+    const enableAgentDebate =
+      (configDebateFlag !== undefined
+        ? configDebateFlag.toLowerCase() === 'true'
+        : undefined) ?? envDebateFlag?.toLowerCase() === 'true';
+
+    const maxAgentDebatesPerRun = this.parsePositiveInteger(
+      configMap.get('max_agent_debates_per_run'),
+      'max_agent_debates_per_run',
+      10,
+    );
+
+    return {
+      topN,
+      compositeThresholdPct,
+      enableAgentDebate,
+      maxAgentDebatesPerRun,
+    };
   }
 
   private delay(ms: number): Promise<void> {
@@ -619,7 +645,9 @@ export class AnalysisService {
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       for (const feature of batch) {
-        const categoryScoresJson: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput =
+        const categoryScoresJson:
+          | Prisma.InputJsonValue
+          | Prisma.NullableJsonNullValueInput =
           feature.category_scores ?? Prisma.JsonNull;
         const signal = await tx.signal.upsert({
           where: {
@@ -733,6 +761,37 @@ export class AnalysisService {
         });
       }
     });
+  }
+
+  private async runAgentDebatesForRun(
+    runId: string,
+    maxDebates: number,
+  ): Promise<void> {
+    const selectedSignals = await this.prisma.signal.findMany({
+      where: { run_id: runId, selected: true },
+      orderBy: [{ rank: 'asc' }, { composite_score_normalized: 'desc' }],
+      take: Math.max(1, maxDebates),
+      select: { id: true, symbol: true },
+    });
+
+    if (selectedSignals.length === 0) {
+      this.logger.log(`No selected signals available for agent debates in run ${runId}`);
+      return;
+    }
+
+    this.logger.log(
+      `Launching agent debates for ${selectedSignals.length} selected signals (run ${runId})`,
+    );
+
+    for (const signal of selectedSignals) {
+      try {
+        await this.debateOrchestrator.runDebateForSignal(signal.id);
+      } catch (error) {
+        this.logger.warn(
+          `Agent debate failed for signal ${signal.id} (${signal.symbol}): ${this.getErrorMessage(error)}`,
+        );
+      }
+    }
   }
 
   private buildFailure(
