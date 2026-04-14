@@ -143,6 +143,7 @@ export class AlpacaService {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   private toJson(value: Record<string, unknown>): Prisma.InputJsonValue {
     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
   }
