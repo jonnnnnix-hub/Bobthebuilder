@@ -1,8 +1,10 @@
+---
 name: CI & Deploy
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,18 +16,34 @@ jobs:
         with:
           node-version: 22
 
-      - name: Build & Test
+      - name: Enable Corepack
         working-directory: nodejs_space
-        run: |
-          corepack enable
-          yarn install --immutable
-          yarn lint
-          yarn test
-          yarn build
+        run: corepack enable
+
+      - name: Install Dependencies
+        working-directory: nodejs_space
+        run: yarn install --immutable
+
+      - name: Generate Prisma Client
+        working-directory: nodejs_space
+        run: npx prisma generate
+
+      - name: Lint
+        working-directory: nodejs_space
+        run: yarn lint
+
+      - name: Test
+        working-directory: nodejs_space
+        run: yarn test
+
+      - name: Build
+        working-directory: nodejs_space
+        run: yarn build
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +51,12 @@ jobs:
 
       - name: Deploy to Fly.io
         working-directory: nodejs_space
-        run: fly deploy --remote-only
+        run: |
+          # Ensure CRON_API_KEY is set in Fly.io secrets
+          flyctl secrets list -a bob-signals | grep -q CRON_API_KEY || \
+            flyctl secrets set CRON_API_KEY="${{ secrets.CRON_API_KEY }}" -a bob-signals
+          
+          # Deploy the application
+          flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
