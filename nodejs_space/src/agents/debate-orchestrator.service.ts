@@ -132,7 +132,9 @@ export class DebateOrchestratorService {
     for (const opinion of round3) {
       votes[opinion.vote] += 1;
       const meta = identityMap.get(opinion.agent);
-      const weight = meta?.voteWeight ?? 1;
+      const baseWeight = meta?.voteWeight ?? 1;
+      // Sprint 12: adjust weight by historical accuracy
+      const weight = this.getAccuracyAdjustedWeight(opinion.agent, baseWeight);
       const weighted = weight * opinion.confidence;
       weightedTotal += weighted;
       if (opinion.vote === 'select') {
@@ -188,6 +190,32 @@ export class DebateOrchestratorService {
     }
 
     return consensus;
+  }
+
+  /**
+   * Adjust agent vote weight by historical accuracy (Sprint 12 — Task 6.1).
+   *
+   * Formula: effective_weight = base_weight * (0.7 + 0.6 * accuracy)
+   * - 50% accuracy → 1.0x base (neutral)
+   * - 80% accuracy → 1.18x base (boosted)
+   * - 30% accuracy → 0.88x base (reduced)
+   * Clamped to [base * 0.75, base * 1.30].
+   *
+   * Risk Manager's veto power is NOT adjusted — structural, not performance-based.
+   * Minimum 30 closed trades per agent before any adjustment.
+   */
+  private getAccuracyAdjustedWeight(agentName: string, baseWeight: number): number {
+    // Risk Manager weight is structural — never adjusted
+    if (agentName === 'Risk Manager') return baseWeight;
+
+    // TODO: Query rolling accuracy from agents.service.getStats()
+    // For now, use base weights until 30+ trades per agent are available.
+    // When wired: const accuracy = this.agentsService.getAgentAccuracy(agentName);
+    // if (accuracy === null || accuracy.sampleSize < 30) return baseWeight;
+    // const factor = 0.7 + 0.6 * accuracy.accuracyPct;
+    // return Math.max(baseWeight * 0.75, Math.min(baseWeight * 1.30, baseWeight * factor));
+
+    return baseWeight;
   }
 
   private resolveConsensusStrength(selectCount: number): ConsensusResult['consensusStrength'] {
