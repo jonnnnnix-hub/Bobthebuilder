@@ -37,6 +37,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/require-await': 'warn',
       '@typescript-eslint/only-throw-error': 'warn',
+      '@typescript-eslint/no-empty-object-type': 'warn',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
