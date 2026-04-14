@@ -35,6 +35,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-member-access': 'warn',
       '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/require-await': 'warn',
+      '@typescript-eslint/only-throw-error': 'warn',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
