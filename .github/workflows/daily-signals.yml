@@ -1,5 +1,9 @@
 name: Daily Signal Generation
 
+# End-of-day run: ingests final daily bars and runs one last analysis after close.
+# Intraday signals are handled by IntradaySchedulerService inside the app
+# (every INTRADAY_INTERVAL_MINUTES during market hours).
+
 on:
   schedule:
     # Weekdays 4:30 PM ET (21:30 UTC) after market close
@@ -21,7 +25,7 @@ jobs:
       - name: Trigger analysis
         run: |
           for i in 1 2 3; do
-            curl -sf -X POST https://bob-signals.fly.dev/api/analysis/trigger \
+            curl -sf -X POST https://bob-signals.fly.dev/api/analysis/trigger?trigger=cron \
               -H "x-api-key: ${{ secrets.CRON_API_KEY }}" && break
             echo "Attempt $i failed, retrying..."
             sleep 10
