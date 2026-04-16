@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { TradingDecision } from './trading.types.js';
+import type { AccountSnapshot, TradingDecision } from './trading.types.js';
 
 @Injectable()
 export class AutonomousRiskService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async evaluate(decision: TradingDecision): Promise<{
+  async evaluate(
+    decision: TradingDecision,
+    account?: AccountSnapshot,
+  ): Promise<{
     approved: boolean;
     status: 'approved' | 'blocked';
     metrics: Record<string, number | string | null>;
@@ -74,6 +77,20 @@ export class AutonomousRiskService {
       );
     }
 
+    const maxDailyLossPct = Number(process.env.MAX_DAILY_LOSS_PCT ?? 0.03);
+    let dailyChangePct: number | null = null;
+    if (account && account.lastEquity && account.lastEquity > 0) {
+      dailyChangePct = (account.equity - account.lastEquity) / account.lastEquity;
+      if (dailyChangePct < -maxDailyLossPct) {
+        reasons.push(
+          `daily loss ${(dailyChangePct * 100).toFixed(2)}% exceeds limit ${(maxDailyLossPct * 100).toFixed(2)}%`,
+        );
+      }
+    }
+    if (account && account.status !== 'ACTIVE') {
+      reasons.push(`account status "${account.status}" is not ACTIVE`);
+    }
+
     await this.prisma.risk_metrics.create({
       data: {
         portfolio_value: nextExposure,
@@ -92,6 +109,8 @@ export class AutonomousRiskService {
           dynamicSymbolLimit,
           dynamicDeltaLimit,
           reasons,
+          dailyChangePct,
+          maxDailyLossPct,
         },
       },
     });

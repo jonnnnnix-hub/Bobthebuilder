@@ -93,4 +93,30 @@ describe('AutonomousRiskService', () => {
     expect(result.approved).toBe(false);
     expect(result.reasons.join(' ')).toContain('liquidity score');
   });
+
+  it('blocks when daily loss exceeds the configured limit', async () => {
+    prismaMock.position_monitoring.findMany.mockResolvedValue([] as never);
+
+    const result = await service.evaluate(decision, {
+      status: 'ACTIVE',
+      equity: 95000,
+      lastEquity: 100000,
+    });
+
+    expect(result.approved).toBe(false);
+    expect(result.reasons.join(' ')).toContain('daily loss');
+  });
+
+  it('blocks when account status is not ACTIVE', async () => {
+    prismaMock.position_monitoring.findMany.mockResolvedValue([] as never);
+
+    const result = await service.evaluate(decision, {
+      status: 'ACCOUNT_CLOSED',
+      equity: 100000,
+      lastEquity: 100000,
+    });
+
+    expect(result.approved).toBe(false);
+    expect(result.reasons.join(' ')).toContain('ACTIVE');
+  });
 });
