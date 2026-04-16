@@ -75,3 +75,39 @@ describe('AutonomousExecutionService.checkAccountSafety', () => {
     expect(gate.snapshot.lastEquity).toBeNull();
   });
 });
+
+describe('AutonomousExecutionService.isRetryableOrderError', () => {
+  const service = new AutonomousExecutionService(
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+  );
+
+  it('retries on network errors with no response', () => {
+    expect(service.isRetryableOrderError(new Error('ECONNRESET'))).toBe(true);
+  });
+
+  it('retries on 429 rate limit', () => {
+    expect(
+      service.isRetryableOrderError({ response: { status: 429 } }),
+    ).toBe(true);
+  });
+
+  it('retries on 5xx server errors', () => {
+    expect(
+      service.isRetryableOrderError({ response: { status: 502 } }),
+    ).toBe(true);
+  });
+
+  it('does not retry on 4xx client errors', () => {
+    expect(
+      service.isRetryableOrderError({ response: { status: 422 } }),
+    ).toBe(false);
+    expect(
+      service.isRetryableOrderError({ response: { status: 403 } }),
+    ).toBe(false);
+  });
+});

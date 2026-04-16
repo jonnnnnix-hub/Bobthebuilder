@@ -4,6 +4,7 @@ import { DecisionEngineService } from './decision-engine.service.js';
 import { AutonomousRiskService } from './autonomous-risk.service.js';
 import { AutonomousExecutionService } from './autonomous-execution.service.js';
 import { ExitManagementService } from './exit-management.service.js';
+import { OrderReconciliationService } from './order-reconciliation.service.js';
 import { TradingController } from './trading.controller.js';
 import { TradingService } from './trading.service.js';
 import { TradingLoggerService } from './trading-logger.service.js';
@@ -16,6 +17,7 @@ import { TradingLoggerService } from './trading-logger.service.js';
     TradingLoggerService,
     ExitManagementService,
     AutonomousExecutionService,
+    OrderReconciliationService,
     TradingService,
   ],
   controllers: [TradingController],

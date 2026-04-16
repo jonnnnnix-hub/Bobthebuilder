@@ -60,3 +60,47 @@ describe('AlpacaService', () => {
     expect(prismaMock.alpaca_account.upsert).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('AlpacaService paper/live guard', () => {
+  const prismaMock = {
+    alpaca_account: { upsert: jest.fn() },
+  } as unknown as jest.Mocked<PrismaService>;
+
+  function buildConfig(values: Record<string, string | undefined>): ConfigService {
+    return {
+      get: jest.fn((key: string) => values[key] ?? null),
+    } as unknown as jest.Mocked<ConfigService>;
+  }
+
+  it('throws when live base URL is used without ALLOW_LIVE_TRADING', () => {
+    const config = buildConfig({
+      ALPACA_API_KEY: 'key',
+      ALPACA_API_SECRET: 'secret',
+      ALPACA_PAPER_BASE_URL: 'https://api.alpaca.markets',
+    });
+
+    expect(() => new AlpacaService(config, prismaMock)).toThrow(
+      /ALLOW_LIVE_TRADING/,
+    );
+  });
+
+  it('allows live base URL when ALLOW_LIVE_TRADING=true', () => {
+    const config = buildConfig({
+      ALPACA_API_KEY: 'key',
+      ALPACA_API_SECRET: 'secret',
+      ALPACA_PAPER_BASE_URL: 'https://api.alpaca.markets',
+      ALLOW_LIVE_TRADING: 'true',
+    });
+
+    expect(() => new AlpacaService(config, prismaMock)).not.toThrow();
+  });
+
+  it('defaults to paper endpoint when no base URL is set', () => {
+    const config = buildConfig({
+      ALPACA_API_KEY: 'key',
+      ALPACA_API_SECRET: 'secret',
+    });
+
+    expect(() => new AlpacaService(config, prismaMock)).not.toThrow();
+  });
+});
