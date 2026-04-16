@@ -31,6 +31,12 @@ export class OrderReconciliationService {
     this.isRunning = true;
     try {
       await this.reconcileOpenOrders();
+    } catch (error) {
+      await this.logger.log(
+        'error',
+        'order_reconciliation_failed',
+        `reconcile error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       this.isRunning = false;
     }

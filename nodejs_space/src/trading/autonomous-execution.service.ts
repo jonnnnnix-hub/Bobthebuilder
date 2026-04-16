@@ -54,6 +54,12 @@ export class AutonomousExecutionService {
       await this.syncPositions();
       await this.evaluateEntries(gate.snapshot);
       await this.exitManager.evaluateAndExecute();
+    } catch (error) {
+      await this.logger.log(
+        'error',
+        'cycle_failed',
+        `runCycle error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       this.isRunning = false;
     }
