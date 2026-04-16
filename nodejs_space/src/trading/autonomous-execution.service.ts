@@ -52,7 +52,7 @@ export class AutonomousExecutionService {
       }
 
       await this.syncPositions();
-      await this.evaluateEntries(gate.snapshot);
+      await this.evaluateEntries(gate.snapshot, accountRaw);
       await this.exitManager.evaluateAndExecute();
     } catch (error) {
       await this.logger.log(
@@ -69,9 +69,10 @@ export class AutonomousExecutionService {
     const snapshot: AccountSnapshot = {
       status: this.readString(accountRaw.status, 'unknown'),
       equity: this.readNumber(accountRaw.equity, 0),
-      lastEquity: accountRaw.last_equity == null
-        ? null
-        : this.readNumber(accountRaw.last_equity, 0),
+      lastEquity:
+        accountRaw.last_equity == null
+          ? null
+          : this.readNumber(accountRaw.last_equity, 0),
     };
 
     const minEquity = Number(process.env.MIN_REQUIRED_EQUITY ?? 2000);
@@ -99,14 +100,22 @@ export class AutonomousExecutionService {
     return { safe: reasons.length === 0, reasons, snapshot };
   }
 
-  private async evaluateEntries(initialSnapshot: AccountSnapshot): Promise<void> {
+  private async evaluateEntries(
+    initialSnapshot: AccountSnapshot,
+    initialAccountRaw: Record<string, unknown>,
+  ): Promise<void> {
     const portfolioKill = await this.checkPortfolioKillSwitch();
     if (portfolioKill.tripped) {
       await this.logger.log(
         'warn',
         'entry_halted',
         `Portfolio kill switch tripped: ${portfolioKill.reasons.join('; ')}`,
-        { payload: { metrics: portfolioKill.metrics, reasons: portfolioKill.reasons } },
+        {
+          payload: {
+            metrics: portfolioKill.metrics,
+            reasons: portfolioKill.reasons,
+          },
+        },
       );
       return;
     }
@@ -119,8 +128,10 @@ export class AutonomousExecutionService {
     });
 
     let snapshot = initialSnapshot;
+    let availableBuyingPower = this.readBuyingPower(initialAccountRaw);
 
-    for (const candidate of candidates) {
+    for (let i = 0; i < candidates.length; i += 1) {
+      const candidate = candidates[i];
       const exists = await this.prisma.trade_decision.findFirst({
         where: { signal_id: candidate.id },
       });
@@ -138,6 +149,10 @@ export class AutonomousExecutionService {
         return;
       }
       snapshot = gate.snapshot;
+      // Re-anchor buying power to the freshest Alpaca snapshot once per loop;
+      // we still subtract our own pending submissions below.
+      const fresh = this.readBuyingPower(accountRaw);
+      if (fresh !== null) availableBuyingPower = fresh;
 
       const decision = await this.decisionEngine.buildDecision(
         candidate.id,
@@ -175,15 +190,47 @@ export class AutonomousExecutionService {
 
       if (!risk.approved) continue;
 
+      const estCost = decision.positionSizing.notionalUsd;
+      if (availableBuyingPower !== null && estCost > availableBuyingPower) {
+        await this.prisma.trade_decision.update({
+          where: { id: decisionRow.id },
+          data: { risk_state: 'blocked' },
+        });
+        await this.logger.log(
+          'warn',
+          'order_skipped_buying_power',
+          `Skipping ${decision.symbol}: estimated cost ${estCost.toFixed(2)} exceeds remaining buying power ${availableBuyingPower.toFixed(2)}`,
+          {
+            symbol: decision.symbol,
+            payload: { estCost, availableBuyingPower },
+          },
+        );
+        continue;
+      }
+
       await this.submitOrderWithRetry(decisionRow.id, decision.symbol, {
         symbol: decision.symbol,
         qty: String(decision.positionSizing.contracts),
         side: decision.strategy.strategy.includes('short') ? 'sell' : 'buy',
         type: 'market',
         time_in_force: 'day',
-        client_order_id: `bob-${decision.signalId}-${Date.now()}`,
+        client_order_id: `bob-${decision.signalId}-${i}-${Date.now()}`,
       });
+
+      if (availableBuyingPower !== null) {
+        availableBuyingPower = Math.max(0, availableBuyingPower - estCost);
+      }
     }
+  }
+
+  readBuyingPower(
+    accountRaw: Record<string, unknown> | undefined,
+  ): number | null {
+    if (!accountRaw) return null;
+    const value = accountRaw.buying_power;
+    if (value == null) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   private async submitOrderWithRetry(
@@ -206,6 +253,51 @@ export class AutonomousExecutionService {
       try {
         const order = await this.alpacaService.placeOrder(payload);
 
+        const requestedQty = Number(payload.qty);
+        const acceptedQty = this.readNumber(order.qty, requestedQty);
+        const acceptedSide = this.readString(order.side, payload.side);
+        const acceptedType = this.readString(order.type, payload.type);
+        const mismatches: string[] = [];
+        if (
+          Number.isFinite(requestedQty) &&
+          Number.isFinite(acceptedQty) &&
+          Math.abs(acceptedQty - requestedQty) > 1e-6
+        ) {
+          mismatches.push(
+            `qty requested=${requestedQty} accepted=${acceptedQty}`,
+          );
+        }
+        if (acceptedSide !== payload.side) {
+          mismatches.push(
+            `side requested=${payload.side} accepted=${acceptedSide}`,
+          );
+        }
+        if (acceptedType !== payload.type) {
+          mismatches.push(
+            `type requested=${payload.type} accepted=${acceptedType}`,
+          );
+        }
+        if (mismatches.length > 0) {
+          await this.logger.log(
+            'warn',
+            'order_response_mismatch',
+            `Alpaca accepted order for ${symbol} with adjustments: ${mismatches.join('; ')}`,
+            {
+              symbol,
+              payload: {
+                requested: payload,
+                accepted: {
+                  qty: acceptedQty,
+                  side: acceptedSide,
+                  type: acceptedType,
+                },
+                mismatches,
+                orderId: this.readString(order.id, ''),
+              },
+            },
+          );
+        }
+
         await this.prisma.alpaca_order.create({
           data: {
             trade_decision_id: decisionId,
@@ -215,12 +307,14 @@ export class AutonomousExecutionService {
               payload.client_order_id,
             ),
             symbol,
-            side: this.readString(order.side, payload.side),
-            order_type: this.readString(order.type, payload.type),
-            quantity: this.readNumber(order.qty, Number(payload.qty)),
+            side: acceptedSide,
+            order_type: acceptedType,
+            quantity: acceptedQty,
             status: this.readString(order.status, 'accepted'),
             submitted_at: order.submitted_at
-              ? new Date(this.readString(order.submitted_at, new Date().toISOString()))
+              ? new Date(
+                  this.readString(order.submitted_at, new Date().toISOString()),
+                )
               : new Date(),
             request_payload: this.asJson(payload),
             response_payload: this.asJson(order),
@@ -238,7 +332,11 @@ export class AutonomousExecutionService {
           `Order submitted for ${symbol}`,
           {
             symbol,
-            payload: { attempts, orderId: this.readString(order.id, '') },
+            payload: {
+              attempts,
+              orderId: this.readString(order.id, ''),
+              acceptedQty,
+            },
           },
         );
         return;
@@ -249,7 +347,10 @@ export class AutonomousExecutionService {
             'warn',
             'order_permanent_failure',
             `Permanent failure for ${symbol} (no retry): ${lastError}`,
-            { symbol, payload: { attempts, status: this.orderErrorStatus(error) } },
+            {
+              symbol,
+              payload: { attempts, status: this.orderErrorStatus(error) },
+            },
           );
           break;
         }
@@ -289,37 +390,53 @@ export class AutonomousExecutionService {
     for (const position of positions) {
       const symbol = this.readString(position.symbol, '');
       const opening = await this.findOpeningDecision(symbol);
+      const tradeDecisionId = opening?.id ?? null;
 
-      await this.prisma.position_monitoring.create({
-        data: {
-          alpaca_position_id: this.readString(
-            position.asset_id ?? position.symbol,
-            symbol,
-          ),
+      const data = {
+        alpaca_position_id: this.readString(
+          position.asset_id ?? position.symbol,
           symbol,
-          strategy: opening?.selected_strategy ?? null,
-          trade_decision_id: opening?.id ?? null,
-          quantity: this.readNumber(position.qty, 0),
-          avg_entry_price: this.readNumber(position.avg_entry_price, 0),
-          current_price: this.readNumber(position.current_price, 0),
-          market_value: this.readNumber(position.market_value, 0),
-          unrealized_pl: this.readNumber(position.unrealized_pl, 0),
-          unrealized_pl_pct: this.readNumber(position.unrealized_plpc, 0),
-          realized_pl: this.readNumber(position.realized_pl, 0),
-          delta: this.readNumber(position.delta, 0),
-          gamma: this.readNumber(position.gamma, 0),
-          theta: this.readNumber(position.theta, 0),
-          vega: this.readNumber(position.vega, 0),
-          dte_remaining: position.dte
-            ? this.readNumber(position.dte, 0)
-            : null,
-          exit_criteria_status: {
-            pnl: this.readNumber(position.unrealized_plpc, 0),
-            dte: position.dte ? this.readNumber(position.dte, 0) : null,
-          },
-          last_synced_at: new Date(),
+        ),
+        symbol,
+        strategy: opening?.selected_strategy ?? null,
+        trade_decision_id: tradeDecisionId,
+        quantity: this.readNumber(position.qty, 0),
+        avg_entry_price: this.readNumber(position.avg_entry_price, 0),
+        current_price: this.readNumber(position.current_price, 0),
+        market_value: this.readNumber(position.market_value, 0),
+        unrealized_pl: this.readNumber(position.unrealized_pl, 0),
+        unrealized_pl_pct: this.readNumber(position.unrealized_plpc, 0),
+        realized_pl: this.readNumber(position.realized_pl, 0),
+        delta: this.readNumber(position.delta, 0),
+        gamma: this.readNumber(position.gamma, 0),
+        theta: this.readNumber(position.theta, 0),
+        vega: this.readNumber(position.vega, 0),
+        dte_remaining: position.dte ? this.readNumber(position.dte, 0) : null,
+        exit_criteria_status: {
+          pnl: this.readNumber(position.unrealized_plpc, 0),
+          dte: position.dte ? this.readNumber(position.dte, 0) : null,
         },
+        last_synced_at: new Date(),
+      };
+
+      // Manual upsert keyed by (symbol, trade_decision_id) — schema has no
+      // unique constraint, so we look up the live row and update it in place.
+      // Prevents per-cycle row growth that would bloat the table and let
+      // exit-management reads pick up stale snapshots.
+      const existing = await this.prisma.position_monitoring.findFirst({
+        where: { symbol, trade_decision_id: tradeDecisionId },
+        orderBy: { last_synced_at: 'desc' },
+        select: { id: true },
       });
+
+      if (existing) {
+        await this.prisma.position_monitoring.update({
+          where: { id: existing.id },
+          data,
+        });
+      } else {
+        await this.prisma.position_monitoring.create({ data });
+      }
     }
   }
 

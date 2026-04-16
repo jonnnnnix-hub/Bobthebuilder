@@ -24,7 +24,11 @@ describe('OrderReconciliationService.reconcileOpenOrders', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new OrderReconciliationService(prismaMock, alpacaMock, loggerMock);
+    service = new OrderReconciliationService(
+      prismaMock,
+      alpacaMock,
+      loggerMock,
+    );
     prismaMock.alpaca_order.update.mockResolvedValue({} as never);
   });
 

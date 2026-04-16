@@ -80,7 +80,8 @@ export class AutonomousRiskService {
     const maxDailyLossPct = Number(process.env.MAX_DAILY_LOSS_PCT ?? 0.03);
     let dailyChangePct: number | null = null;
     if (account && account.lastEquity && account.lastEquity > 0) {
-      dailyChangePct = (account.equity - account.lastEquity) / account.lastEquity;
+      dailyChangePct =
+        (account.equity - account.lastEquity) / account.lastEquity;
       if (dailyChangePct < -maxDailyLossPct) {
         reasons.push(
           `daily loss ${(dailyChangePct * 100).toFixed(2)}% exceeds limit ${(maxDailyLossPct * 100).toFixed(2)}%`,

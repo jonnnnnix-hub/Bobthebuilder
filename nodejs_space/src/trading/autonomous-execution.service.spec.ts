@@ -92,24 +92,24 @@ describe('AutonomousExecutionService.isRetryableOrderError', () => {
   });
 
   it('retries on 429 rate limit', () => {
-    expect(
-      service.isRetryableOrderError({ response: { status: 429 } }),
-    ).toBe(true);
+    expect(service.isRetryableOrderError({ response: { status: 429 } })).toBe(
+      true,
+    );
   });
 
   it('retries on 5xx server errors', () => {
-    expect(
-      service.isRetryableOrderError({ response: { status: 502 } }),
-    ).toBe(true);
+    expect(service.isRetryableOrderError({ response: { status: 502 } })).toBe(
+      true,
+    );
   });
 
   it('does not retry on 4xx client errors', () => {
-    expect(
-      service.isRetryableOrderError({ response: { status: 422 } }),
-    ).toBe(false);
-    expect(
-      service.isRetryableOrderError({ response: { status: 403 } }),
-    ).toBe(false);
+    expect(service.isRetryableOrderError({ response: { status: 422 } })).toBe(
+      false,
+    );
+    expect(service.isRetryableOrderError({ response: { status: 403 } })).toBe(
+      false,
+    );
   });
 });
 
