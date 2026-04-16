@@ -40,3 +40,15 @@ export interface TradingDecision {
   scoreConfidence: number;
   rationale: Record<string, unknown>;
 }
+
+export interface AccountSnapshot {
+  status: string;
+  equity: number;
+  lastEquity: number | null;
+}
+
+export interface AccountSafetyCheck {
+  safe: boolean;
+  reasons: string[];
+  snapshot: AccountSnapshot;
+}

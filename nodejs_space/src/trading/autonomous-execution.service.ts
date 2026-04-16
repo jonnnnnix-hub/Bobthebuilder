@@ -7,6 +7,7 @@ import { AutonomousRiskService } from './autonomous-risk.service.js';
 import { AlpacaService } from '../alpaca/alpaca.service.js';
 import { TradingLoggerService } from './trading-logger.service.js';
 import { ExitManagementService } from './exit-management.service.js';
+import type { AccountSafetyCheck, AccountSnapshot } from './trading.types.js';
 
 @Injectable()
 export class AutonomousExecutionService {
@@ -36,15 +37,63 @@ export class AutonomousExecutionService {
         return;
       }
 
+      const accountRaw = await this.alpacaService.getAccount();
+      const gate = this.checkAccountSafety(accountRaw);
+      if (!gate.safe) {
+        await this.logger.log(
+          'warn',
+          'engine_disabled',
+          `Autonomous trading loop skipped: ${gate.reasons.join('; ')}`,
+          { payload: { snapshot: gate.snapshot, reasons: gate.reasons } },
+        );
+        await this.syncPositions();
+        await this.exitManager.evaluateAndExecute();
+        return;
+      }
+
       await this.syncPositions();
-      await this.evaluateEntries();
+      await this.evaluateEntries(gate.snapshot);
       await this.exitManager.evaluateAndExecute();
     } finally {
       this.isRunning = false;
     }
   }
 
-  private async evaluateEntries(): Promise<void> {
+  checkAccountSafety(accountRaw: Record<string, unknown>): AccountSafetyCheck {
+    const snapshot: AccountSnapshot = {
+      status: this.readString(accountRaw.status, 'unknown'),
+      equity: this.readNumber(accountRaw.equity, 0),
+      lastEquity: accountRaw.last_equity == null
+        ? null
+        : this.readNumber(accountRaw.last_equity, 0),
+    };
+
+    const minEquity = Number(process.env.MIN_REQUIRED_EQUITY ?? 2000);
+    const maxDailyLossPct = Number(process.env.MAX_DAILY_LOSS_PCT ?? 0.03);
+
+    const reasons: string[] = [];
+    if (snapshot.status !== 'ACTIVE') {
+      reasons.push(`account status is "${snapshot.status}" (expected ACTIVE)`);
+    }
+    if (snapshot.equity < minEquity) {
+      reasons.push(
+        `equity ${snapshot.equity.toFixed(2)} below minimum ${minEquity.toFixed(2)}`,
+      );
+    }
+    if (snapshot.lastEquity && snapshot.lastEquity > 0) {
+      const dailyChangePct =
+        (snapshot.equity - snapshot.lastEquity) / snapshot.lastEquity;
+      if (dailyChangePct < -maxDailyLossPct) {
+        reasons.push(
+          `daily loss ${(dailyChangePct * 100).toFixed(2)}% exceeds limit ${(maxDailyLossPct * 100).toFixed(2)}%`,
+        );
+      }
+    }
+
+    return { safe: reasons.length === 0, reasons, snapshot };
+  }
+
+  private async evaluateEntries(initialSnapshot: AccountSnapshot): Promise<void> {
     const candidates = await this.prisma.signal.findMany({
       where: { selected: true },
       orderBy: { created_at: 'desc' },
@@ -52,16 +101,34 @@ export class AutonomousExecutionService {
       select: { id: true, symbol: true },
     });
 
+    let snapshot = initialSnapshot;
+
     for (const candidate of candidates) {
       const exists = await this.prisma.trade_decision.findFirst({
         where: { signal_id: candidate.id },
       });
       if (exists) continue;
 
-      const decision = await this.decisionEngine.buildDecision(candidate.id);
+      const accountRaw = await this.alpacaService.getAccount();
+      const gate = this.checkAccountSafety(accountRaw);
+      if (!gate.safe) {
+        await this.logger.log(
+          'warn',
+          'entry_halted',
+          `Entry halted mid-cycle: ${gate.reasons.join('; ')}`,
+          { payload: { snapshot: gate.snapshot, reasons: gate.reasons } },
+        );
+        return;
+      }
+      snapshot = gate.snapshot;
+
+      const decision = await this.decisionEngine.buildDecision(
+        candidate.id,
+        accountRaw,
+      );
       if (!decision) continue;
 
-      const risk = await this.riskService.evaluate(decision);
+      const risk = await this.riskService.evaluate(decision, snapshot);
 
       const decisionRow = await this.prisma.trade_decision.create({
         data: {

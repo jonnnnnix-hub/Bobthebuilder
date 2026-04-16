@@ -16,7 +16,10 @@ export class DecisionEngineService {
     private readonly alpacaService: AlpacaService,
   ) {}
 
-  async buildDecision(signalId: number): Promise<TradingDecision | null> {
+  async buildDecision(
+    signalId: number,
+    account?: Record<string, unknown>,
+  ): Promise<TradingDecision | null> {
     const signal = await this.prisma.signal.findUnique({
       where: { id: signalId },
     });
@@ -37,8 +40,8 @@ export class DecisionEngineService {
       expirationSelection,
     );
 
-    const account = await this.alpacaService.getAccount();
-    const sizing = this.sizePosition(signal, account);
+    const resolvedAccount = account ?? (await this.alpacaService.getAccount());
+    const sizing = this.sizePosition(signal, resolvedAccount);
 
     const decision = {
       signalId: signal.id,
