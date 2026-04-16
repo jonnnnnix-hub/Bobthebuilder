@@ -1,5 +1,5 @@
 import { TradeService } from './trade.service';
-import type { PrismaService } from '../prisma/prisma.service';
+import type { MockedPrisma } from '../test/prisma-mock';
 import type { StrategyService } from '../strategy/strategy.service';
 
 describe('TradeService', () => {
@@ -16,7 +16,7 @@ describe('TradeService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
-  } as unknown as jest.Mocked<PrismaService>;
+  } as unknown as MockedPrisma;
 
   const strategyMock = {
     suggestStrategy: jest.fn(),

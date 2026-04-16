@@ -1,12 +1,12 @@
 import { DecisionEngineService } from './decision-engine.service';
-import type { PrismaService } from '../prisma/prisma.service';
+import type { MockedPrisma } from '../test/prisma-mock';
 import type { AlpacaService } from '../alpaca/alpaca.service';
 
 describe('DecisionEngineService', () => {
   const prismaMock = {
     signal: { findUnique: jest.fn() },
     option_chain_snapshot: { findMany: jest.fn() },
-  } as unknown as jest.Mocked<PrismaService>;
+  } as unknown as MockedPrisma;
 
   const alpacaMock = {
     getAccount: jest.fn(),

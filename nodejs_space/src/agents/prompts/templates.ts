@@ -84,6 +84,12 @@ export const PROMPT_TEMPLATES: Record<AgentName, PromptTemplate> = {
     'Synthesis and final recommendation lead',
     'Aggregate perspectives into an actionable final recommendation.',
   ),
+  'Market Microstructure Specialist': buildTemplate(
+    'Market Microstructure Specialist',
+    'Order flow and liquidity microstructure analyst',
+    'Assess options flow dynamics from raw volume/OI data: volume/OI spikes, put-call skew shifts, large block trades, bid-ask spread quality, and institutional positioning signals.',
+    ['Prioritize raw options chain volume/OI over pre-computed flow scores.'],
+  ),
 };
 
 export function getPromptTemplate(agent: AgentName): PromptTemplate {

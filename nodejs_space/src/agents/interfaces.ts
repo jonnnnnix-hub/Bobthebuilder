@@ -9,6 +9,7 @@ export const AGENT_NAMES = [
   'Contrarian Analyst',
   'Historical Pattern Analyst',
   'Meta-Strategist',
+  'Market Microstructure Specialist',
 ] as const;
 
 export type AgentName = (typeof AGENT_NAMES)[number];

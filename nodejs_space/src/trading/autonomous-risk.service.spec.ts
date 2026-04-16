@@ -1,5 +1,5 @@
 import { AutonomousRiskService } from './autonomous-risk.service';
-import type { PrismaService } from '../prisma/prisma.service';
+import type { MockedPrisma } from '../test/prisma-mock';
 import type { TradingDecision } from './trading.types';
 
 describe('AutonomousRiskService', () => {
@@ -10,7 +10,7 @@ describe('AutonomousRiskService', () => {
     risk_metrics: {
       create: jest.fn(),
     },
-  } as unknown as jest.Mocked<PrismaService>;
+  } as unknown as MockedPrisma;
 
   let service: AutonomousRiskService;
 

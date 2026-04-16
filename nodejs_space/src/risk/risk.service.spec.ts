@@ -1,5 +1,5 @@
 import { RiskService } from './risk.service';
-import type { PrismaService } from '../prisma/prisma.service';
+import type { MockedPrisma } from '../test/prisma-mock';
 
 describe('RiskService', () => {
   let service: RiskService;
@@ -19,7 +19,7 @@ describe('RiskService', () => {
     position_snapshot: {
       findFirst: jest.fn(),
     },
-  } as unknown as jest.Mocked<PrismaService>;
+  } as unknown as MockedPrisma;
 
   beforeEach(() => {
     jest.clearAllMocks();

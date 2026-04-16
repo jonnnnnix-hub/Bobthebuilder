@@ -84,6 +84,18 @@ const AGENT_IDENTITIES: AgentIdentity[] = [
     voteWeight: 1.2,
     focusCategories: ['vrp', 'ivz', 'term', 'skew', 'momentum', 'flow', 'regime_risk'],
   },
+  // Agent #11 — Sprint 12: fills the real-time flow gap
+  {
+    name: 'Market Microstructure Specialist',
+    role: 'Order flow and liquidity microstructure analyst',
+    expertise:
+      'Options flow dynamics — volume/OI spikes, put-call skew shifts, ' +
+      'large block trades, bid-ask spread quality, and institutional positioning signals. ' +
+      'Analyzes raw options chain volume/OI data, not just pre-computed flow scores.',
+    promptVersion: 'v1',
+    voteWeight: 1.05,
+    focusCategories: ['flow', 'regime_risk'],
+  },
 ];
 
 @Injectable()

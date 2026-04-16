@@ -1,5 +1,5 @@
 import { AnalysisService } from './analysis.service';
-import type { PrismaService } from '../prisma/prisma.service';
+import type { MockedPrisma } from '../test/prisma-mock';
 import type { PolygonService } from '../polygon/polygon.service';
 import type {
   CalculationService,
@@ -8,6 +8,7 @@ import type {
 import type { OratsService } from '../orats/orats.service';
 import type { MarketDataService } from '../market-data/market-data.service';
 import type { ScoringService } from '../scoring/scoring.service';
+import type { DebateOrchestratorService } from '../agents/debate-orchestrator.service';
 
 describe('AnalysisService', () => {
   let service: AnalysisService;
@@ -43,7 +44,7 @@ describe('AnalysisService', () => {
       findMany: jest.fn(),
     },
     $transaction: jest.fn(),
-  } as unknown as jest.Mocked<PrismaService>;
+  } as unknown as MockedPrisma;
 
   const polygonMock = {
     isConfigured: jest.fn(),
@@ -70,6 +71,10 @@ describe('AnalysisService', () => {
     scoreUniverse: jest.fn(),
     rankAndSelect: jest.fn(),
   } as unknown as jest.Mocked<ScoringService>;
+
+  const debateOrchestratorMock = {
+    runDebateForSignal: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<DebateOrchestratorService>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -315,6 +320,7 @@ describe('AnalysisService', () => {
       calculationMock,
       marketDataMock,
       scoringMock,
+      debateOrchestratorMock,
     );
   });
 
