@@ -553,6 +553,7 @@ model trade_decision {
 
   signal_rel              signal? @relation(fields: [signal_id], references: [id])
   alpaca_orders           alpaca_order[]
+  position_monitorings    position_monitoring[]
 
   @@index([symbol, created_at])
   @@index([risk_state])
@@ -592,6 +593,7 @@ model position_monitoring {
   alpaca_position_id     String?  @db.VarChar(120)
   symbol                 String   @db.VarChar(20)
   strategy               String?  @db.VarChar(40)
+  trade_decision_id      BigInt?
   quantity               Decimal? @db.Decimal(14, 4)
   avg_entry_price        Decimal? @db.Decimal(14, 4)
   current_price          Decimal? @db.Decimal(14, 4)
@@ -610,9 +612,11 @@ model position_monitoring {
   updated_at             DateTime @updatedAt
 
   exit_signals           exit_signal[]
+  trade_decision_rel     trade_decision? @relation(fields: [trade_decision_id], references: [id], onDelete: SetNull)
 
   @@index([symbol, last_synced_at])
   @@index([alpaca_position_id])
+  @@index([trade_decision_id])
 }
 
 model exit_signal {
