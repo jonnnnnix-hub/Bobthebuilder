@@ -15,6 +15,7 @@ describe('DebateOrchestratorService consensus', () => {
       { name: 'Technical Momentum Analyst', voteWeight: 1.0 },
       { name: 'Options Flow Analyst', voteWeight: 1.0 },
       { name: 'Market Regime Analyst', voteWeight: 1.0 },
+      { name: 'Market Microstructure Specialist', voteWeight: 1.05 },
       { name: 'Contrarian Analyst', voteWeight: 0.9 },
       { name: 'Historical Pattern Analyst', voteWeight: 0.9 },
     ]),
@@ -46,19 +47,28 @@ describe('DebateOrchestratorService consensus', () => {
   });
 
   it('returns select when supermajority and weighted approval pass threshold', () => {
-    const round3 = Array.from({ length: 10 }).map((_, index) => ({
-      agent:
-        index === 0
-          ? 'Risk Manager'
-          : (['Meta-Strategist', 'VRP Specialist', 'Statistical Edge Analyst', 'Term Structure Specialist', 'Technical Momentum Analyst', 'Options Flow Analyst', 'Market Regime Analyst', 'Contrarian Analyst', 'Historical Pattern Analyst'][
-              index - 1
-            ] as AgentRoundOpinion['agent']),
+    const agentNames: AgentRoundOpinion['agent'][] = [
+      'Risk Manager',
+      'Meta-Strategist',
+      'VRP Specialist',
+      'Statistical Edge Analyst',
+      'Term Structure Specialist',
+      'Technical Momentum Analyst',
+      'Options Flow Analyst',
+      'Market Regime Analyst',
+      'Market Microstructure Specialist',
+      'Contrarian Analyst',
+      'Historical Pattern Analyst',
+    ];
+
+    const round3 = agentNames.map((agent, index) => ({
+      agent,
       round: 3,
       categoryScore: 25,
       conviction: 'high',
       thesis: 'Strong setup',
       keyRisk: 'Normal risk',
-      vote: index <= 6 ? 'select' : 'pass',
+      vote: index <= 7 ? 'select' : 'pass',
       confidence: 0.8,
       promptVersion: 'v1',
     })) as AgentRoundOpinion[];

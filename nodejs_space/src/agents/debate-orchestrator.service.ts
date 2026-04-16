@@ -185,7 +185,7 @@ export class DebateOrchestratorService {
     }
 
     const meetsScoreThreshold = (input.normalizedScore ?? 0) >= 70;
-    if (selectCount >= 6 && weightedApprovalPct >= 70 && meetsScoreThreshold) {
+    if (selectCount >= 7 && weightedApprovalPct >= 70 && meetsScoreThreshold) {
       consensus.consensus = 'select';
     }
 
@@ -219,10 +219,10 @@ export class DebateOrchestratorService {
   }
 
   private resolveConsensusStrength(selectCount: number): ConsensusResult['consensusStrength'] {
-    if (selectCount >= 10) return 'unanimous';
-    if (selectCount >= 8) return 'strong';
-    if (selectCount >= 6) return 'moderate';
-    if (selectCount >= 5) return 'weak';
+    if (selectCount >= 11) return 'unanimous';
+    if (selectCount >= 9) return 'strong';
+    if (selectCount >= 7) return 'moderate';
+    if (selectCount >= 6) return 'weak';
     return 'no_consensus';
   }
 

@@ -1,5 +1,5 @@
 import { ResearchService } from './research.service';
-import type { PrismaService } from '../prisma/prisma.service';
+import type { MockedPrisma } from '../test/prisma-mock';
 
 describe('ResearchService', () => {
   const prismaMock = {
@@ -9,7 +9,7 @@ describe('ResearchService', () => {
     market_bar: {
       findMany: jest.fn(),
     },
-  } as unknown as jest.Mocked<PrismaService>;
+  } as unknown as MockedPrisma;
 
   beforeEach(() => {
     jest.clearAllMocks();

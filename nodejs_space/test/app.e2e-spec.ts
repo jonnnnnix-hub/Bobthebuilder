@@ -353,7 +353,7 @@ describe('Bob API (integration)', () => {
 
       expect(
         result.symbols.every(
-          (row: { sector: string }) => row.sector === 'Technology',
+          (row: { sector: string | null }) => row.sector === 'Technology',
         ),
       ).toBe(true);
     });

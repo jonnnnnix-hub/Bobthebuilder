@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 /**
- * LLM service for Bob's 10 specialist debate agents.
+ * LLM service for Bob's 11 specialist debate agents.
  *
  * ARCHITECTURAL DISTINCTION (from consolidation plan):
  * - Syntax-Labs = "diverse models disagree productively" (3+ providers)
- * - Bobthebuilder = "one model thinks deeply from 10 perspectives" (Claude only)
+ * - Bobthebuilder = "one model thinks deeply from 11 perspectives" (Claude only)
  *
  * Uses direct Anthropic API for deep, consistent reasoning with:
  * - Long system prompts with detailed analytical frameworks per agent
  * - Temperature 0.1 for deterministic analytical output
- * - Prompt caching for the 10 agent system prompts (they repeat every debate)
+ * - Prompt caching for the 11 agent system prompts (they repeat every debate)
  *
  * Falls back to AbacusAI if ANTHROPIC_API_KEY is not set (backward compat).
  */
@@ -35,7 +35,7 @@ export class AgentLlmService {
 
   /**
    * Direct Anthropic API call with prompt caching.
-   * Bob's 10 agent system prompts are cached — they repeat every debate.
+   * Bob's 11 agent system prompts are cached — they repeat every debate.
    */
   private async callAnthropic<T>(
     params: {
@@ -55,7 +55,7 @@ export class AgentLlmService {
           'anthropic-beta': 'prompt-caching-2024-07-31',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
           max_tokens: 4096,
           temperature: params.temperature ?? 0.1,
           system: [
