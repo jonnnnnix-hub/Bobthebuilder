@@ -13,6 +13,7 @@
     "backfill:options": "tsc -p tsconfig.build.json && node dist/src/scripts/backfill-options-chains.js",
     "ingest:day": "tsc -p tsconfig.build.json && node dist/src/scripts/ingest-day-aggregates.js",
     "research:backtest": "tsc -p tsconfig.build.json && node dist/src/scripts/backtest-signals.js",
+    "preflight:trading": "tsc -p tsconfig.build.json && node dist/src/scripts/preflight-trading.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
