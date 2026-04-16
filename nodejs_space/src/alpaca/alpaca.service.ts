@@ -18,6 +18,19 @@ export class AlpacaService {
       this.config.get<string>('ALPACA_PAPER_BASE_URL') ??
       'https://paper-api.alpaca.markets';
 
+    const isPaper = /paper-api\.alpaca\.markets/i.test(baseURL);
+    const allowLive = this.config.get<string>('ALLOW_LIVE_TRADING') === 'true';
+    if (!isPaper && !allowLive) {
+      throw new Error(
+        `AlpacaService refusing to start: baseURL "${baseURL}" is not the paper endpoint and ALLOW_LIVE_TRADING is not "true".`,
+      );
+    }
+    this.logger.log(
+      isPaper
+        ? `Alpaca configured for PAPER trading (${baseURL})`
+        : `Alpaca configured for LIVE trading (${baseURL}) — ALLOW_LIVE_TRADING=true`,
+    );
+
     this.http = axios.create({
       baseURL,
       timeout: 10000,

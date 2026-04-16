@@ -227,6 +227,15 @@ export class AutonomousExecutionService {
         return;
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
+        if (!this.isRetryableOrderError(error)) {
+          await this.logger.log(
+            'warn',
+            'order_permanent_failure',
+            `Permanent failure for ${symbol} (no retry): ${lastError}`,
+            { symbol, payload: { attempts, status: this.orderErrorStatus(error) } },
+          );
+          break;
+        }
       }
     }
 
@@ -240,6 +249,21 @@ export class AutonomousExecutionService {
       `Order failed for ${symbol} after retries: ${lastError}`,
       { symbol },
     );
+  }
+
+  isRetryableOrderError(error: unknown): boolean {
+    const status = this.orderErrorStatus(error);
+    if (status === undefined) return true;
+    if (status === 429) return true;
+    if (status >= 500) return true;
+    return false;
+  }
+
+  private orderErrorStatus(error: unknown): number | undefined {
+    const response = (error as { response?: { status?: unknown } })?.response;
+    if (!response) return undefined;
+    const status = response.status;
+    return typeof status === 'number' ? status : undefined;
   }
 
   private async syncPositions(): Promise<void> {
