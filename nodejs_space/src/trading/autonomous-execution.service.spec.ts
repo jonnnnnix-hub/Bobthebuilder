@@ -1,4 +1,5 @@
 import { AutonomousExecutionService } from './autonomous-execution.service';
+import type { MockedPrisma } from '../test/prisma-mock';
 
 describe('AutonomousExecutionService.checkAccountSafety', () => {
   const service = new AutonomousExecutionService(
@@ -109,5 +110,70 @@ describe('AutonomousExecutionService.isRetryableOrderError', () => {
     expect(
       service.isRetryableOrderError({ response: { status: 403 } }),
     ).toBe(false);
+  });
+});
+
+describe('AutonomousExecutionService.checkPortfolioKillSwitch', () => {
+  const prismaMock = {
+    risk_metrics: {
+      findFirst: jest.fn(),
+    },
+  } as unknown as MockedPrisma;
+
+  const service = new AutonomousExecutionService(
+    prismaMock as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+  );
+
+  const baseEnv = { ...process.env };
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...baseEnv };
+  });
+  afterAll(() => {
+    process.env = baseEnv;
+  });
+
+  it('does not trip when there are no risk metrics yet', async () => {
+    prismaMock.risk_metrics.findFirst.mockResolvedValue(null as never);
+    const result = await service.checkPortfolioKillSwitch();
+    expect(result.tripped).toBe(false);
+  });
+
+  it('does not trip when concentration and heat are under limits', async () => {
+    process.env.KILL_SWITCH_MAX_CONCENTRATION = '0.4';
+    process.env.KILL_SWITCH_MAX_HEAT = '0.25';
+    prismaMock.risk_metrics.findFirst.mockResolvedValue({
+      max_symbol_concentration: 0.15,
+      portfolio_heat_pct: 0.1,
+    } as never);
+    const result = await service.checkPortfolioKillSwitch();
+    expect(result.tripped).toBe(false);
+  });
+
+  it('trips when concentration exceeds the limit', async () => {
+    process.env.KILL_SWITCH_MAX_CONCENTRATION = '0.3';
+    prismaMock.risk_metrics.findFirst.mockResolvedValue({
+      max_symbol_concentration: 0.45,
+      portfolio_heat_pct: 0.1,
+    } as never);
+    const result = await service.checkPortfolioKillSwitch();
+    expect(result.tripped).toBe(true);
+    expect(result.reasons.join(' ')).toContain('concentration');
+  });
+
+  it('trips when heat exceeds the limit', async () => {
+    process.env.KILL_SWITCH_MAX_HEAT = '0.2';
+    prismaMock.risk_metrics.findFirst.mockResolvedValue({
+      max_symbol_concentration: 0.1,
+      portfolio_heat_pct: 0.35,
+    } as never);
+    const result = await service.checkPortfolioKillSwitch();
+    expect(result.tripped).toBe(true);
+    expect(result.reasons.join(' ')).toContain('heat');
   });
 });

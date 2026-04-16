@@ -94,6 +94,17 @@ export class AutonomousExecutionService {
   }
 
   private async evaluateEntries(initialSnapshot: AccountSnapshot): Promise<void> {
+    const portfolioKill = await this.checkPortfolioKillSwitch();
+    if (portfolioKill.tripped) {
+      await this.logger.log(
+        'warn',
+        'entry_halted',
+        `Portfolio kill switch tripped: ${portfolioKill.reasons.join('; ')}`,
+        { payload: { metrics: portfolioKill.metrics, reasons: portfolioKill.reasons } },
+      );
+      return;
+    }
+
     const candidates = await this.prisma.signal.findMany({
       where: { selected: true },
       orderBy: { created_at: 'desc' },
@@ -271,6 +282,7 @@ export class AutonomousExecutionService {
 
     for (const position of positions) {
       const symbol = this.readString(position.symbol, '');
+      const opening = await this.findOpeningDecision(symbol);
 
       await this.prisma.position_monitoring.create({
         data: {
@@ -279,7 +291,8 @@ export class AutonomousExecutionService {
             symbol,
           ),
           symbol,
-          strategy: null,
+          strategy: opening?.selected_strategy ?? null,
+          trade_decision_id: opening?.id ?? null,
           quantity: this.readNumber(position.qty, 0),
           avg_entry_price: this.readNumber(position.avg_entry_price, 0),
           current_price: this.readNumber(position.current_price, 0),
@@ -302,6 +315,79 @@ export class AutonomousExecutionService {
         },
       });
     }
+  }
+
+  async checkPortfolioKillSwitch(): Promise<{
+    tripped: boolean;
+    reasons: string[];
+    metrics: {
+      maxSymbolConcentration: number | null;
+      portfolioHeatPct: number | null;
+    };
+  }> {
+    const latest = await this.prisma.risk_metrics.findFirst({
+      orderBy: { created_at: 'desc' },
+      select: {
+        max_symbol_concentration: true,
+        portfolio_heat_pct: true,
+      },
+    });
+
+    const concentrationLimit = Number(
+      process.env.KILL_SWITCH_MAX_CONCENTRATION ?? 0.4,
+    );
+    const heatLimit = Number(process.env.KILL_SWITCH_MAX_HEAT ?? 0.25);
+
+    const concentration =
+      latest?.max_symbol_concentration == null
+        ? null
+        : Number(latest.max_symbol_concentration);
+    const heat =
+      latest?.portfolio_heat_pct == null
+        ? null
+        : Number(latest.portfolio_heat_pct);
+
+    const reasons: string[] = [];
+    if (concentration !== null && concentration > concentrationLimit) {
+      reasons.push(
+        `symbol concentration ${concentration.toFixed(3)} exceeds kill-switch limit ${concentrationLimit.toFixed(3)}`,
+      );
+    }
+    if (heat !== null && heat > heatLimit) {
+      reasons.push(
+        `portfolio heat ${heat.toFixed(3)} exceeds kill-switch limit ${heatLimit.toFixed(3)}`,
+      );
+    }
+
+    return {
+      tripped: reasons.length > 0,
+      reasons,
+      metrics: {
+        maxSymbolConcentration: concentration,
+        portfolioHeatPct: heat,
+      },
+    };
+  }
+
+  private async findOpeningDecision(
+    symbol: string,
+  ): Promise<{ id: bigint; selected_strategy: string } | null> {
+    const order = await this.prisma.alpaca_order.findFirst({
+      where: {
+        symbol,
+        trade_decision_id: { not: null },
+        status: { in: ['filled', 'partially_filled'] },
+      },
+      orderBy: { created_at: 'desc' },
+      select: { trade_decision_id: true },
+    });
+    if (!order?.trade_decision_id) return null;
+
+    const decision = await this.prisma.trade_decision.findUnique({
+      where: { id: order.trade_decision_id },
+      select: { id: true, selected_strategy: true },
+    });
+    return decision;
   }
 
   private asJson(value: unknown): Prisma.InputJsonValue {

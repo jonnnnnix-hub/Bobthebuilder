@@ -21,10 +21,11 @@ import { OptionsIngestionModule } from './options-ingestion/options-ingestion.mo
 import { AlpacaModule } from './alpaca/alpaca.module.js';
 import { TradingModule } from './trading/trading.module.js';
 import { AgentsModule } from './agents/agents.module.js';
+import { validateEnv } from './config/env-validation.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     ScheduleModule.forRoot(),
     PrismaModule,
     PolygonModule,
